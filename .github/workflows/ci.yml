@@ -1,0 +1,21 @@
+name: Test application
+on:
+  push:
+    branches: [arena/037de605-nounarchive]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+          cache: npm
+      - run: npm ci
+      - run: npm run cf:db:local
+      - run: npm test
+      - run: npm audit --omit=dev --audit-level=high
