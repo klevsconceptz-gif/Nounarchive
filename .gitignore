@@ -1,0 +1,16 @@
+node_modules/
+data/archive.json
+.env
+*.tmp
+data/admin-credential.json
+data/posts.json
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+data/backups/
+.wrangler/
+.dev.vars
+.dev.vars.*
+dist/
+data/cloudflare-export.sql
+data/d1-backup.sql

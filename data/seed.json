@@ -1,0 +1,123 @@
+{
+  "snapshotAt": "2026-10-30",
+  "items": [
+    {
+      "id": "aa4007f916a57432",
+      "source": "puredu",
+      "title": "NOUN Abuja Study Centre Implements Reforms to Enhance Student Experience",
+      "url": "https://puredu.net/post/noun-abuja-study-centre-implements-reforms-to-enhance-student-experience",
+      "excerpt": "Reforms focus on power supply, examination security and student support at the Abuja Model Study Centre.",
+      "publishedAt": "2026-10-27T00:00:00.000Z",
+      "category": "Campus news",
+      "snapshot": true,
+      "readingMinutes": 4
+    },
+    {
+      "id": "970bfbbf39a8e3a5",
+      "source": "puredu",
+      "title": "NOUN Director Implements Zero-Tolerance Policy on Exam Malpractice",
+      "url": "https://puredu.net/post/noun-director-implements-zero-tolerance-policy-on-exam-malpractice",
+      "excerpt": "The Dei-Dei Special Study Centre announces a renewed commitment to academic integrity.",
+      "publishedAt": "2026-10-25T00:00:00.000Z",
+      "category": "Examinations",
+      "snapshot": true,
+      "readingMinutes": 2
+    },
+    {
+      "id": "401be358da7b8673",
+      "source": "puredu",
+      "title": "NOUN Launches New Certificate Programs in Cosmetology and Aesthetics",
+      "url": "https://puredu.net/post/noun-launches-new-certificate-programs-in-cosmetology-and-aesthetics",
+      "excerpt": "Three certificate programmes expand access to emerging fields and industry-relevant learning.",
+      "publishedAt": "2026-10-25T00:00:00.000Z",
+      "category": "Admissions",
+      "snapshot": true,
+      "readingMinutes": 3
+    },
+    {
+      "id": "41412a0ac678a477",
+      "source": "puredu",
+      "title": "NOUN Promotes Open Learning in Bauchi State Through Radio Advocacy",
+      "url": "https://puredu.net/post/noun-promotes-open-learning-in-bauchi-state-through-radio-advocacy",
+      "excerpt": "The Azare Community Study Centre promotes open and distance learning through a local radio advocacy visit.",
+      "publishedAt": "2026-10-25T00:00:00.000Z",
+      "category": "Campus news",
+      "snapshot": true,
+      "readingMinutes": 1
+    },
+    {
+      "id": "a4bfd35612371856",
+      "source": "bbcnoun",
+      "title": "NOUN 2026_1 POP Final Timetable",
+      "url": "https://bbcnoun.com.ng/noun-2026_1-pop-final-timetable/",
+      "excerpt": "The published POP examination timetable includes dates for the 2026 first-semester examinations.",
+      "publishedAt": "2026-04-02T00:00:00.000Z",
+      "category": "Examinations",
+      "snapshot": true
+    },
+    {
+      "id": "d6ffe5aaa3103be9",
+      "source": "bbcnoun",
+      "title": "NOUN Academic Calendar 2026 (PDF Download & Key Dates)",
+      "url": "https://bbcnoun.com.ng/noun-academic-calendar-2026/",
+      "excerpt": "Academic calendar information covering registration, examinations and key university dates.",
+      "publishedAt": "2026-02-04T00:00:00.000Z",
+      "category": "Academics",
+      "snapshot": true
+    },
+    {
+      "id": "6b0a19c78e991b83",
+      "source": "bbcnoun",
+      "title": "NOUN 2026 Graduation List",
+      "url": "https://bbcnoun.com.ng/noun-2026-graduation-list/",
+      "excerpt": "Information about the list of students approved to graduate from the National Open University of Nigeria.",
+      "publishedAt": "2026-02-03T00:00:00.000Z",
+      "category": "Graduation",
+      "snapshot": true
+    },
+    {
+      "id": "3ee5c113305c59e4",
+      "source": "bbcnoun",
+      "title": "NOUN POP 2025_2 Past Questions",
+      "url": "https://bbcnoun.com.ng/noun-pop-2025-2-past-questions/",
+      "excerpt": "A source listing for previous POP examination questions and exam preparation resources.",
+      "publishedAt": "2026-01-31T00:00:00.000Z",
+      "category": "Examinations",
+      "snapshot": true
+    },
+    {
+      "id": "1edc682bd5c08709",
+      "source": "bbcnoun",
+      "title": "NOUN POP 2025_1 Past Questions",
+      "url": "https://bbcnoun.com.ng/noun-pop-2025_1-past-questions/",
+      "excerpt": "Find the original source\u2019s collection of previous examination questions.",
+      "publishedAt": "2026-01-31T00:00:00.000Z",
+      "category": "Examinations",
+      "snapshot": true
+    },
+    {
+      "id": "80e47829f3ff4fc3",
+      "source": "bbcnoun",
+      "title": "NOUN POP 2024_2 Past Questions",
+      "url": "https://bbcnoun.com.ng/noun-pop-2024_2-past-questions/",
+      "excerpt": "Previous semester POP examination resources from BBCNOUN.",
+      "publishedAt": "2026-01-31T00:00:00.000Z",
+      "category": "Examinations",
+      "snapshot": true
+    }
+  ],
+  "status": {
+    "bbcnoun": {
+      "state": "snapshot",
+      "message": "Initial source snapshot \u00b7 not a live sync"
+    },
+    "nounupdate": {
+      "state": "snapshot",
+      "message": "Awaiting first successful news import"
+    },
+    "puredu": {
+      "state": "snapshot",
+      "message": "Initial source snapshot \u00b7 not a live sync"
+    }
+  }
+}
