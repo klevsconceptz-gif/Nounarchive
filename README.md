@@ -1,5 +1,7 @@
 # Nounarchive
 
+**GitHub deployment with functional admin:** [Admin deployment walkthrough](cloudflare/GITHUB-ADMIN-DEPLOYMENT.md).
+
 **GitHub + Cloudflare quick start:** [Deployment checklist](DEPLOYMENT.md).
 
 **Cloudflare deployment:** See [Workers & Pages deployment guide](cloudflare/DEPLOYMENT.md). Both edge targets use D1; the Node/SQLite instructions below apply only to conventional server hosting.
