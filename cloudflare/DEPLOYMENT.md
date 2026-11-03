@@ -57,12 +57,12 @@ Deploying the secret creates a new Worker version. Visit the URL reported by Wra
 ## 3B. Pages deployment
 
 ```sh
-npx wrangler pages project create nounarchive --production-branch arena/cbb4d4ea-nounarchive
-npm run pages:deploy -- --branch arena/cbb4d4ea-nounarchive
+npx wrangler pages project create nounarchive --production-branch arena/1ab57b0b-nounarchive
+npm run pages:deploy -- --branch arena/1ab57b0b-nounarchive
 npm run cf:admin-hash
 npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name nounarchive
 # Publish again so the new secret is available to the deployment:
-npm run pages:deploy -- --branch arena/cbb4d4ea-nounarchive
+npm run pages:deploy -- --branch arena/1ab57b0b-nounarchive
 # Pages cannot run cron. Deploy this collector against the SAME D1 database:
 npm run cf:deploy:scheduler
 ```

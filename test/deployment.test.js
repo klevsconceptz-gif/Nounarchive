@@ -9,7 +9,7 @@ test('GitHub workflows parse and production deployment is manual and branch-scop
  assert.ok(deploy.on.workflow_dispatch);
  assert.equal(deploy.on.push,undefined);
  assert.equal(deploy.jobs.deploy.environment,'production');
- assert.match(deploy.jobs.deploy.if,/arena\/cbb4d4ea-nounarchive/);
+ assert.match(deploy.jobs.deploy.if,/arena\/1ab57b0b-nounarchive/);
  assert.equal(deploy.concurrency['cancel-in-progress'],false);
  assert.equal(deploy.permissions.contents,'read');
  assert.ok(deploy.jobs.deploy.steps.some(step=>step.run==='npm test'));
