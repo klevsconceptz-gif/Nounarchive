@@ -15,14 +15,14 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/arena/037de605-nounarchive'
+    if: github.ref == 'refs/heads/arena/cbb4d4ea-nounarchive'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: arena/037de605-nounarchive
+          ref: arena/cbb4d4ea-nounarchive
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.3'
@@ -67,5 +67,5 @@ jobs:
           ADMIN_PASSWORD_HASH: ${{ secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}
         run: |
           printf '%s' "$ADMIN_PASSWORD_HASH" | npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name nounarchive
-          npm run pages:deploy -- --branch arena/037de605-nounarchive
+          npm run pages:deploy -- --branch arena/cbb4d4ea-nounarchive
           npm run cf:deploy:scheduler

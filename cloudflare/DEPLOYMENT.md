@@ -57,12 +57,12 @@ Deploying the secret creates a new Worker version. Visit the URL reported by Wra
 ## 3B. Pages deployment
 
 ```sh
-npx wrangler pages project create nounarchive --production-branch arena/037de605-nounarchive
-npm run pages:deploy -- --branch arena/037de605-nounarchive
+npx wrangler pages project create nounarchive --production-branch arena/cbb4d4ea-nounarchive
+npm run pages:deploy -- --branch arena/cbb4d4ea-nounarchive
 npm run cf:admin-hash
 npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name nounarchive
 # Publish again so the new secret is available to the deployment:
-npm run pages:deploy -- --branch arena/037de605-nounarchive
+npm run pages:deploy -- --branch arena/cbb4d4ea-nounarchive
 # Pages cannot run cron. Deploy this collector against the SAME D1 database:
 npm run cf:deploy:scheduler
 ```
@@ -132,3 +132,24 @@ For local cron testing with the installed Wrangler version, run `npm run cf:dev`
 - HTML/feed parsing and password hashing consume CPU. Select a Worker plan/CPU allowance suitable for the workload and monitor Cron/Functions errors and D1 usage. A successful build is not a production capacity test.
 - The full archive is returned in one API response, as in the Node build. Plan server-side pagination before the archive grows large; Cloudflare/D1 query and response limits still apply.
 - Source-specific ingestion restrictions remain: NOUN Update's dynamic listing is not yet live-verified. No anti-bot, paywall or authentication bypass is provided.
+
+## Workers Builds dashboard: resolving D1 error 10021
+
+If the log says `binding DB of type d1 must have a valid database_id specified`, the checked-in placeholder has not been replaced. Installing dependencies, uploading assets, or adding a binding only in the dashboard does not replace that value in the Wrangler file. The remote configuration-difference warning is not the fatal error.
+
+1. In **Storage & databases → D1**, create `nounarchive` if it does not exist. Open it and copy its **Database ID** (UUID), not the account ID or database name.
+2. In the Worker's **Settings → Build → Variables and secrets** (build-time environment), add `D1_DATABASE_ID` with that UUID. This is an identifier, not a secret, and must be available to the build command, not just runtime `env`.
+3. Set the **deploy command** to `npm run cf:deploy`, replacing `npx wrangler deploy`. The npm script validates and injects the build variable into all three Wrangler configurations before calling Wrangler. A direct Wrangler command bypasses that preparation.
+4. Apply D1 migrations from an authorized terminal before serving traffic:
+   ```sh
+   npm run cf:configure -- YOUR_ACTUAL_DATABASE_UUID
+   npm run cf:db:remote
+   ```
+   Alternatively, after validating the intended production database and granting the build token D1 migration permissions, use this dashboard deploy command:
+   ```sh
+   npm run cf:db:remote && npm run cf:deploy
+   ```
+   Both commands read the same `D1_DATABASE_ID` build variable. Back up an existing production database before applying new migrations.
+5. Retry the build. Then configure the runtime `ADMIN_PASSWORD_HASH` secret and check `/api/health`.
+
+If you prefer no build variable, run `cf:configure` locally with the real UUID, commit the changed Wrangler files and deploy that commit. Do not commit passwords or tokens. A syntactically valid UUID is not enough: it must identify a real D1 database in the account used by the deployment token.

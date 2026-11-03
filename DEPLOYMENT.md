@@ -31,7 +31,7 @@ git add .github .gitignore .env.example .nvmrc README.md DEPLOYMENT.md \
   data/seed.json wrangler.jsonc wrangler.pages.jsonc wrangler.scheduler.jsonc
 git diff --cached --stat
 git commit -m "Prepare Nounarchive for GitHub and Cloudflare deployment"
-git push origin arena/037de605-nounarchive
+git push origin arena/cbb4d4ea-nounarchive
 ```
 
 The current branch name is fixed for this session. No branch switch is needed. These commands are instructions; they have not been run on your behalf.
@@ -43,7 +43,7 @@ Included workflows:
 | `.github/workflows/ci.yml` | Tests on pushes to this branch and on pull requests; no Cloudflare credentials required |
 | `.github/workflows/deploy-cloudflare.yml` | Manual, production-environment deployment; accepts `worker` or `pages` |
 
-GitHub may only show a new `workflow_dispatch` workflow in the Actions UI once that workflow exists on the repository's default branch. If it is not listed yet, deploy from the CLI in section 5, or review and merge a pull request containing the workflows first. The deployment job still explicitly checks out and requires `arena/037de605-nounarchive`.
+GitHub may only show a new `workflow_dispatch` workflow in the Actions UI once that workflow exists on the repository's default branch. If it is not listed yet, deploy from the CLI in section 5, or review and merge a pull request containing the workflows first. The deployment job still explicitly checks out and requires `arena/cbb4d4ea-nounarchive`.
 
 ## 3. Create and configure production D1
 
@@ -81,7 +81,7 @@ npm run cf:admin-hash
 
 Enter and confirm a strong password. Keep the password for signing into `/admin.html`. The command outputs a salted `pbkdf2-sha256$100000$...` hash; treat that value as a secret too. The Node admin password file is not used by the Cloudflare backend.
 
-In GitHub, open **Settings → Environments → New environment**, name it **production**, and restrict deployment branches to `arena/037de605-nounarchive`. Add required reviewer approval if your plan supports it.
+In GitHub, open **Settings → Environments → New environment**, name it **production**, and restrict deployment branches to `arena/cbb4d4ea-nounarchive`. Add required reviewer approval if your plan supports it.
 
 Add these **environment secrets**:
 
@@ -118,9 +118,9 @@ The resulting Worker includes the site, APIs and hourly collection. Wrangler rep
 Create the Pages project once:
 
 ```bash
-npx wrangler pages project create nounarchive --production-branch arena/037de605-nounarchive
+npx wrangler pages project create nounarchive --production-branch arena/cbb4d4ea-nounarchive
 npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name nounarchive
-npm run pages:deploy -- --branch arena/037de605-nounarchive
+npm run pages:deploy -- --branch arena/cbb4d4ea-nounarchive
 npm run cf:deploy:scheduler
 ```
 
@@ -133,7 +133,7 @@ The repository-root `wrangler.jsonc` is intentionally the **Workers** configurat
 After the environment settings are configured and the workflow is available:
 
 1. Open **Actions → Deploy to Cloudflare → Run workflow**.
-2. Select branch **arena/037de605-nounarchive**.
+2. Select branch **arena/cbb4d4ea-nounarchive**.
 3. Choose target **worker** or **pages**.
 4. Approve the `production` environment deployment if prompted.
 5. Review the test, migration and deployment job logs for the reported URL.
@@ -168,3 +168,7 @@ This private export may include drafts. It preserves existing D1 rows, excludes 
 External source ingestion, especially NOUN Update's dynamic listing, still needs live-host verification. A passing deployment health check does not imply all three sources are reachable. Choose a Cloudflare plan/CPU allowance appropriate for feed parsing and password hashing, and monitor errors and D1 usage.
 
 For architecture, local edge preview, backups and operational details, see [cloudflare/DEPLOYMENT.md](cloudflare/DEPLOYMENT.md).
+
+## Cloudflare dashboard build failure: invalid D1 ID (10021)
+
+For dashboard-connected Workers Builds, add a **build variable** named `D1_DATABASE_ID` containing the actual D1 database UUID and set the deploy command to **`npm run cf:deploy`**, not `npx wrangler deploy`. The npm script injects the ID before deploying. Apply the remote migrations before using the site. See [the detailed error-10021 checklist](cloudflare/DEPLOYMENT.md#workers-builds-dashboard-resolving-d1-error-10021).
