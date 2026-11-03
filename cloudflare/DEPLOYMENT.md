@@ -57,12 +57,12 @@ Deploying the secret creates a new Worker version. Visit the URL reported by Wra
 ## 3B. Pages deployment
 
 ```sh
-npx wrangler pages project create nounarchive --production-branch arena/1ab57b0b-nounarchive
-npm run pages:deploy -- --branch arena/1ab57b0b-nounarchive
+npx wrangler pages project create nounarchive --production-branch arena/bf9d8ef8-nounarchive
+npm run pages:deploy -- --branch arena/bf9d8ef8-nounarchive
 npm run cf:admin-hash
 npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name nounarchive
 # Publish again so the new secret is available to the deployment:
-npm run pages:deploy -- --branch arena/1ab57b0b-nounarchive
+npm run pages:deploy -- --branch arena/bf9d8ef8-nounarchive
 # Pages cannot run cron. Deploy this collector against the SAME D1 database:
 npm run cf:deploy:scheduler
 ```
@@ -77,7 +77,7 @@ The standalone scheduler has no public ingestion endpoint and needs no admin sec
 
 ## 4. Existing content migration (optional)
 
-A fresh D1 installation has no editorial posts; the app explicitly labels the bundled ten-headline snapshot until live imports succeed. Import your existing SQLite archive and drafts before switching production traffic:
+A fresh D1 installation has no editorial posts; the app explicitly labels the bundled fourteen-headline snapshot until live imports succeed. Import your existing SQLite archive and drafts before switching production traffic:
 
 ```sh
 # Run where your current SQLite database exists; stop editorial writes during migration.

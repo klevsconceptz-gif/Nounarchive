@@ -12,7 +12,11 @@ function renderFeatured(){
  const lead=latest[0];
  if(!lead){$('featured').innerHTML='<div class="feature-loading">Your community updates will appear here as articles become available.</div>';$('recent').textContent='No articles available yet.';return;}
  const publisher=data.sources.find(s=>s.id===lead.source);
- $('featured').innerHTML=`<article class="lead-story"><div class="lead-art" aria-hidden="true"><span class="feature-kicker">THE COMMUNITY BRIEF</span><strong>Every update.<br>A step forward.</strong><small>NEWS · LEARNING · COMMUNITY</small><span class="feature-symbol">✳</span></div><div class="lead-copy"><div class="eyebrow">LATEST IN THE ARCHIVE</div><h2><a href="${escape(lead.url)}" ${linkAttrs(lead)}>${escape(lead.title)}</a></h2>${metadata(lead,publisher)}<p>${escape(lead.excerpt)}</p><a class="read-more" href="${escape(lead.url)}" ${linkAttrs(lead)}>Read the full update →</a></div></article>`;
+ $('featured').innerHTML=`<article class="lead-story"><div class="lead-art" aria-hidden="true"><span class="feature-kicker">THE COMMUNITY BRIEF</span><strong>The university.<br>In perspective.</strong><small>NEWS · LEARNING · COMMUNITY</small><span class="feature-symbol">✳</span></div><div class="lead-copy"><div class="eyebrow">LATEST IN THE ARCHIVE</div><h2><a href="${escape(lead.url)}" ${linkAttrs(lead)}>${escape(lead.title)}</a></h2>${metadata(lead,publisher)}<p>${escape(lead.excerpt)}</p><a class="read-more" href="${escape(lead.url)}" ${linkAttrs(lead)}>Read the full update →</a></div></article>`;
+ if ($('topic-stories')) {
+ const selected=['Examinations','Academics','Admissions'].map(c=>latest.find(i=>i.category===c)).filter(Boolean);
+ $('topic-stories').innerHTML=selected.map(i=>`<article class="topic-card"><div class="eyebrow">${escape(i.category)}</div><h3><a href="${escape(i.url)}" ${linkAttrs(i)}>${escape(i.title)}</a></h3><p>${escape(i.excerpt)}</p><div class="topic-footer"><span>${dateLabel(i.publishedAt)}</span><a href="${escape(i.url)}" ${linkAttrs(i)}>Read story ↗</a></div></article>`).join('');
+ }
  $('recent').innerHTML=latest.slice(1,5).map(i=>`<a class="recent-item" href="${escape(i.url)}" ${linkAttrs(i)}><small>${dateLabel(i.publishedAt)} · ${escape(i.category)}</small><strong>${escape(i.title)}</strong></a>`).join('');
 }
 function render() {

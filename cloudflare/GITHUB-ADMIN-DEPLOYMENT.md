@@ -33,7 +33,7 @@ Enter and confirm a strong password when prompted. Keep this password for signin
 
 Repository: `klevsconceptz-gif/Nounarchive`.
 
-Go to **Settings → Environments → New environment**, name it `production`, and allow deployment from **arena/1ab57b0b-nounarchive**. Optional: require reviewer approval.
+Go to **Settings → Environments → New environment**, name it `production`, and allow deployment from **arena/bf9d8ef8-nounarchive**. Optional: require reviewer approval.
 
 Add these environment secrets:
 
@@ -53,15 +53,15 @@ These are **GitHub Actions environment settings**. Dashboard Workers Builds vari
 
 ## 5. Publish the workflow changes
 
-The fix must be committed/pushed on `arena/1ab57b0b-nounarchive`. The workflow file generally also needs to exist on GitHub's default branch to appear in the Actions manual-run UI; review and merge a pull request with the changes if necessary. Do not switch or rename the active branch.
+The fix must be committed/pushed on `arena/bf9d8ef8-nounarchive`. The workflow file generally also needs to exist on GitHub's default branch to appear in the Actions manual-run UI; review and merge a pull request with the changes if necessary. Do not switch or rename the active branch.
 
-The deployment job explicitly requires and checks out `arena/1ab57b0b-nounarchive`. Run it on that branch; choosing `main` will skip this branch-restricted deployment. CI tests both Worker and Pages bundles with local D1, including admin authentication, CSRF enforcement, draft privacy, publishing, deletion and logout.
+The deployment job explicitly requires and checks out `arena/bf9d8ef8-nounarchive`. Run it on that branch; choosing `main` will skip this branch-restricted deployment. CI tests both Worker and Pages bundles with local D1, including admin authentication, CSRF enforcement, draft privacy, publishing, deletion and logout.
 
 ## 6. Run the deployment
 
 Open **Actions → Deploy to Cloudflare → Run workflow**:
 
-- Branch: **arena/1ab57b0b-nounarchive**
+- Branch: **arena/bf9d8ef8-nounarchive**
 - Target: **worker**
 
 Approve the `production` environment if prompted. The job:
@@ -75,7 +75,7 @@ Approve the `production` environment if prompted. The job:
 
 A workflow is successful only when all steps succeed. The default database backup stays on the temporary CI runner, so configure durable backups separately. Review the deploy log for the resulting Worker URL. If using a custom domain rather than workers.dev, use that address.
 
-For **Pages**, create the `nounarchive` Pages project first with production branch `arena/1ab57b0b-nounarchive` (see the main deployment guide), then select `pages`. The workflow sets the Pages admin secret before deploying and deploys the standalone cron Worker. Disable any previously deployed full Worker cron to avoid duplicate collectors.
+For **Pages**, create the `nounarchive` Pages project first with production branch `arena/bf9d8ef8-nounarchive` (see the main deployment guide), then select `pages`. The workflow sets the Pages admin secret before deploying and deploys the standalone cron Worker. Disable any previously deployed full Worker cron to avoid duplicate collectors.
 
 ## 7. Confirm the admin panel is functional
 
@@ -97,7 +97,7 @@ Passing local tests confirms implementation behavior; this checklist confirms yo
 | Symptom | Action |
 |---|---|
 | D1 error 10021 / invalid `database_id` | Check GitHub `production` variable `D1_DATABASE_ID`; it must be a real D1 UUID in the token's account. Run the workflow, not a direct unconfigured `wrangler deploy`. |
-| Job skipped | Run on `arena/1ab57b0b-nounarchive`; permit this branch in environment rules. |
+| Job skipped | Run on `arena/bf9d8ef8-nounarchive`; permit this branch in environment rules. |
 | Missing setting | Check environment secret/variable names exactly, including `CLOUDFLARE_ADMIN_PASSWORD_HASH`. |
 | Invalid hash format | Regenerate with `cf:admin-hash`; store the entire output hash without quotes or whitespace. |
 | Admin says not configured | Confirm the final secret-install step succeeded on the same Worker/Pages project that serves the URL. |

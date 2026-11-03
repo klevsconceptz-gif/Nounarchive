@@ -1,7 +1,7 @@
 name: Test application
 on:
   push:
-    branches: [arena/1ab57b0b-nounarchive]
+    branches: [arena/bf9d8ef8-nounarchive]
   pull_request:
 permissions:
   contents: read
