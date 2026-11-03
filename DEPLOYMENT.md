@@ -172,3 +172,7 @@ For architecture, local edge preview, backups and operational details, see [clou
 ## Cloudflare dashboard build failure: invalid D1 ID (10021)
 
 For dashboard-connected Workers Builds, add a **build variable** named `D1_DATABASE_ID` containing the actual D1 database UUID and set the deploy command to **`npm run cf:deploy`**, not `npx wrangler deploy`. The npm script injects the ID before deploying. Apply the remote migrations before using the site. See [the detailed error-10021 checklist](cloudflare/DEPLOYMENT.md#workers-builds-dashboard-resolving-d1-error-10021).
+
+## Consolidated production deployment
+
+The deployment workflow now runs automatically when changes are merged into `main`, deploying the complete Worker by default. Manual runs can select `main` or `arena/bf9d8ef8-nounarchive`; checkout uses the event's exact commit instead of an obsolete branch. Make sure the GitHub `production` environment permits `main` and contains the required Cloudflare secrets and D1 variable. Pages remains a manual alternative. Old merged branches are retained as history, not deployed independently. Earlier uncommitted SEO audit artifacts were not present in the consolidation checkout and are not part of this release; do not interpret prior local scores as production verification.

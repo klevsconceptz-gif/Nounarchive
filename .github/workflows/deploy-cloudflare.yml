@@ -1,5 +1,7 @@
 name: Deploy to Cloudflare
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       target:
@@ -15,14 +17,14 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/arena/bf9d8ef8-nounarchive'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/arena/bf9d8ef8-nounarchive'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: arena/bf9d8ef8-nounarchive
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.3'
@@ -51,7 +53,7 @@ jobs:
           npx wrangler d1 export nounarchive --remote --output data/d1-backup.sql
           npm run cf:db:remote
       - name: Deploy full Worker and set admin secret
-        if: inputs.target == 'worker'
+        if: github.event_name == 'push' || inputs.target == 'worker'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -65,7 +67,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ADMIN_PASSWORD_HASH: ${{ secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}
+          DEPLOY_BRANCH: ${{ github.ref_name }}
         run: |
           printf '%s' "$ADMIN_PASSWORD_HASH" | npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name nounarchive
-          npm run pages:deploy -- --branch arena/bf9d8ef8-nounarchive
+          npm run pages:deploy -- --branch "$DEPLOY_BRANCH"
           npm run cf:deploy:scheduler

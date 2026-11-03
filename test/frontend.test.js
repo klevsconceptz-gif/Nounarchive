@@ -46,3 +46,9 @@ test('resource directory filters reviewed external links and handles no matches'
  const search=d.getElementById('resource-search');search.value='nonexistent resource';search.dispatchEvent(new dom.window.Event('input'));assert.equal(d.querySelectorAll('.resource-card').length,0);assert.match(d.getElementById('resource-cards').textContent,/No resources found/);
  }finally{dom.window.close();}
 });
+test('public pages omit admin links but the direct admin panel remains available',async()=>{
+ for(const file of ['index.html','resources.html','post.html']){
+ const dom=new JSDOM(await readFile('public/'+file,'utf8'));try{assert.equal(dom.window.document.querySelectorAll('a[href*="admin"]').length,0,file);}finally{dom.window.close();}
+ }
+ const dom=new JSDOM(await readFile('public/admin.html','utf8'));try{assert.ok(dom.window.document.getElementById('login-form'));assert.ok(dom.window.document.getElementById('post-form'));}finally{dom.window.close();}
+});
