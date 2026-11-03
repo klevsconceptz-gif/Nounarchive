@@ -21,7 +21,7 @@ test('publication homepage renders lead, metadata, filtering, bookmarks and pagi
  assert.equal(document.querySelectorAll('.topic-card').length,3);
  const search=document.getElementById('search');search.value='cosmetology';search.dispatchEvent(new window.Event('input'));assert.equal(document.querySelectorAll('#cards .card').length,1);
  document.querySelector('[data-save]').click();assert.equal(document.getElementById('saved-count').textContent,'1');
- document.getElementById('clear').click();const source=document.getElementById('source');source.value='nounupdate';source.dispatchEvent(new window.Event('change'));assert.equal(document.querySelectorAll('#cards .card').length,0);assert.match(document.getElementById('cards').textContent,/No updates found/);
+ document.getElementById('clear').click();document.querySelector('[data-category=Admissions]').click();assert.equal(document.querySelectorAll('#cards .card').length,seed.items.filter(i=>i.category==='Admissions').length);search.value='not-a-real-headline';search.dispatchEvent(new window.Event('input'));assert.equal(document.querySelectorAll('#cards .card').length,0);assert.match(document.getElementById('cards').textContent,/No updates found/);
  }finally{dom.window.close();}
 });
 test('login screen omits setup instructions while preserving password login and editor',async()=>{
@@ -54,7 +54,7 @@ test('public pages omit admin links but the direct admin panel remains available
  }
  const dom=new JSDOM(await readFile('public/admin.html','utf8'));try{assert.ok(dom.window.document.getElementById('login-form'));assert.ok(dom.window.document.getElementById('post-form'));}finally{dom.window.close();}
 });
-test('landing page omits publisher banners, badges and claims while keeping article destinations',async()=>{
+test('landing page omits outbound links, publisher banners, badges and claims',async()=>{
  const html=await readFile('public/index.html','utf8');
  const seed=JSON.parse(await readFile('data/seed.json','utf8'));
  const dom=new JSDOM(html,{url:'https://nounarchive.test/',runScripts:'outside-only'});
@@ -66,9 +66,12 @@ test('landing page omits publisher banners, badges and claims while keeping arti
  assert.doesNotMatch(d.body.textContent,/An independent student news index|Not affiliated with NOUN|Imported articles belong|News from BBCNOUN|TRANSPARENT BY DESIGN|Know where your news comes from|Imported stories link|Source health below|All three sources synced successfully|sources synced successfully|External services are provided by/);
  assert.equal(d.querySelectorAll('#sources,#source-status,.publisher,a[href="#sources"]').length,0);
  assert.equal(d.querySelectorAll('#cards .card').length,6);
- assert.equal(d.querySelectorAll('.resource-card').length,6);
- for(const tag of d.querySelectorAll('.resource-link'))assert.equal(tag.textContent,'Open resource↗');
- for(const a of d.querySelectorAll('#cards h3 a')){assert.ok(seed.items.some(i=>i.url===a.href));assert.equal(a.rel,'noopener noreferrer');}
+ assert.equal(d.querySelectorAll('.resource-card').length,3);
+ assert.equal(d.querySelectorAll('#source,#cards h3 a').length,0);
+ assert.doesNotMatch(d.body.textContent,/BBCNOUN|NOUN Update|Puredu|Browse by source|News publisher/);
+ for(const a of d.querySelectorAll('a[href]'))assert.equal(new URL(a.href).origin,w.location.origin,a.outerHTML);
+ d.getElementById('load-more').click();
+ for(const a of d.querySelectorAll('a[href]'))assert.equal(new URL(a.href).origin,w.location.origin,a.outerHTML);
  const q=d.getElementById('search');q.value='not-a-real-headline';q.dispatchEvent(new w.Event('input'));
  assert.match(d.getElementById('cards').textContent,/No updates found/);
  assert.doesNotMatch(d.getElementById('cards').textContent,/status below/);
@@ -81,4 +84,21 @@ test('student-platform theme is shared across pages with an original responsive 
  try{const d=dom.window.document;const sheets=[...d.querySelectorAll('link[rel="stylesheet"]')].map(link=>link.getAttribute('href'));assert.equal(sheets.at(-1),'/platform.css');if(name==='index'){const img=d.querySelector('.intro-note img');assert.equal(img.getAttribute('src'),'/student-hub.svg');assert.ok(img.alt);assert.equal(d.querySelectorAll('.platform-actions a').length,2);}}finally{dom.window.close();}
  }
  const svg=await readFile('public/student-hub.svg','utf8');assert.match(svg,/viewBox="0 0 620 460"/);assert.doesNotMatch(svg,/<script/i);
+});
+
+test('homepage preserves internal editorial links but never links to foreign or unsafe destinations',async()=>{
+ const dom=new JSDOM(await readFile('public/index.html','utf8'),{url:'https://nounarchive.test/',runScripts:'outside-only'});
+ try{
+ const w=dom.window;const items=[
+ {id:'own',source:'nounarchive',title:'Original student announcement',url:'/post.html?id='+'a'.repeat(24),category:'Campus news',publishedAt:'2026-11-03T00:00:00Z'},
+ {id:'double-slash',source:'nounarchive',title:'Ambiguous path must not be linked',url:'https://nounarchive.test//other.test/path',category:'Academics'},
+ {id:'foreign',source:'nounarchive',title:'Foreign destination must not be linked',url:'https://other.test/post',category:'Admissions'},
+ {id:'unsafe',source:'puredu',title:'Unsafe destination must not be linked',url:'javascript:alert(1)',category:'Examinations'}
+ ];w.fetch=async()=>({ok:true,json:async()=>({items,sources:[],status:{}})});w.setInterval=()=>0;w.HTMLElement.prototype.scrollIntoView=()=>{};
+ w.eval(await readFile('public/app.js','utf8'));await new Promise(r=>setTimeout(r,10));
+ const d=w.document;assert.equal(d.querySelector('#featured h2 a').getAttribute('href'),items[0].url);
+ assert.equal(d.querySelectorAll('#cards h3 a').length,1);
+ for(const a of d.querySelectorAll('a[href]'))assert.equal(new URL(a.href).origin,w.location.origin);
+ d.querySelector('[data-save="own"]').click();d.getElementById('saved-nav').click();assert.equal(d.querySelectorAll('#cards .card').length,1);
+ }finally{dom.window.close();}
 });
