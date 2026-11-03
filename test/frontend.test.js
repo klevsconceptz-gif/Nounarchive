@@ -11,6 +11,8 @@ test('publication homepage renders lead, metadata, filtering, bookmarks and pagi
  window.eval(script);await new Promise(r=>setTimeout(r,10));
  const document=window.document;
  assert.equal(document.querySelectorAll('.lead-story').length,1);
+ assert.equal(document.querySelectorAll('.feature-illustration svg').length,1);
+ assert.equal(document.querySelectorAll('#cards .art-icon svg').length,6);
  assert.equal(document.querySelectorAll('#cards .card').length,6);
  assert.match(document.getElementById('featured').textContent,/4 min read/);
  assert.match(document.querySelector('.story-meta').textContent,/Category:/);
@@ -51,4 +53,32 @@ test('public pages omit admin links but the direct admin panel remains available
  const dom=new JSDOM(await readFile('public/'+file,'utf8'));try{assert.equal(dom.window.document.querySelectorAll('a[href*="admin"]').length,0,file);}finally{dom.window.close();}
  }
  const dom=new JSDOM(await readFile('public/admin.html','utf8'));try{assert.ok(dom.window.document.getElementById('login-form'));assert.ok(dom.window.document.getElementById('post-form'));}finally{dom.window.close();}
+});
+test('landing page omits publisher banners, badges and claims while keeping article destinations',async()=>{
+ const html=await readFile('public/index.html','utf8');
+ const seed=JSON.parse(await readFile('data/seed.json','utf8'));
+ const dom=new JSDOM(html,{url:'https://nounarchive.test/',runScripts:'outside-only'});
+ try{
+ const resources=JSON.parse(await readFile('public/resources.json','utf8'));
+ const w=dom.window;w.fetch=async url=>({ok:true,json:async()=>url==='/resources.json'?resources:({...seed,sources})});w.setInterval=()=>0;
+ w.eval(await readFile('public/app.js','utf8'));w.eval(await readFile('public/resources.js','utf8'));await new Promise(r=>setTimeout(r,10));
+ const d=w.document;
+ assert.doesNotMatch(d.body.textContent,/An independent student news index|Not affiliated with NOUN|Imported articles belong|News from BBCNOUN|TRANSPARENT BY DESIGN|Know where your news comes from|Imported stories link|Source health below|All three sources synced successfully|sources synced successfully|External services are provided by/);
+ assert.equal(d.querySelectorAll('#sources,#source-status,.publisher,a[href="#sources"]').length,0);
+ assert.equal(d.querySelectorAll('#cards .card').length,6);
+ assert.equal(d.querySelectorAll('.resource-card').length,6);
+ for(const tag of d.querySelectorAll('.resource-link'))assert.equal(tag.textContent,'Open resource↗');
+ for(const a of d.querySelectorAll('#cards h3 a')){assert.ok(seed.items.some(i=>i.url===a.href));assert.equal(a.rel,'noopener noreferrer');}
+ const q=d.getElementById('search');q.value='not-a-real-headline';q.dispatchEvent(new w.Event('input'));
+ assert.match(d.getElementById('cards').textContent,/No updates found/);
+ assert.doesNotMatch(d.getElementById('cards').textContent,/status below/);
+ }finally{dom.window.close();}
+});
+
+test('student-platform theme is shared across pages with an original responsive hero graphic',async()=>{
+ for(const name of ['index','resources','admin','post']){
+ const dom=new JSDOM(await readFile('public/'+name+'.html','utf8'));
+ try{const d=dom.window.document;const sheets=[...d.querySelectorAll('link[rel="stylesheet"]')].map(link=>link.getAttribute('href'));assert.equal(sheets.at(-1),'/platform.css');if(name==='index'){const img=d.querySelector('.intro-note img');assert.equal(img.getAttribute('src'),'/student-hub.svg');assert.ok(img.alt);assert.equal(d.querySelectorAll('.platform-actions a').length,2);}}finally{dom.window.close();}
+ }
+ const svg=await readFile('public/student-hub.svg','utf8');assert.match(svg,/viewBox="0 0 620 460"/);assert.doesNotMatch(svg,/<script/i);
 });

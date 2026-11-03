@@ -11,7 +11,7 @@
   const filtered = resources.filter(item => (!category || category.value === 'all' || item.category === category.value) && `${item.title} ${item.description} ${item.source}`.toLowerCase().includes(query));
   const limit = Number(cards.dataset.limit) || filtered.length;
   if (count) count.textContent = `${filtered.length} resource${filtered.length === 1 ? '' : 's'} available`;
-  cards.innerHTML = filtered.slice(0, limit).map(item => `<a class="resource-card" href="${escape(item.url)}" target="_blank" rel="noopener noreferrer"><span class="resource-meta">${escape(item.category)}</span><h3>${escape(item.title)}</h3><p>${escape(item.description)}</p><span class="resource-link">${escape(item.source)}<span aria-hidden="true">↗</span></span></a>`).join('') || '<div class="empty"><h3>No resources found.</h3><p>Try another search or category.</p></div>';
+  cards.innerHTML = filtered.slice(0, limit).map(item => `<a class="resource-card" href="${escape(item.url)}" target="_blank" rel="noopener noreferrer"><span class="resource-meta">${escape(item.category)}</span><h3>${escape(item.title)}</h3><p>${escape(item.description)}</p><span class="resource-link">${cards.dataset.showProvider === 'false' ? 'Open resource' : escape(item.source)}<span aria-hidden="true">↗</span></span></a>`).join('') || '<div class="empty"><h3>No resources found.</h3><p>Try another search or category.</p></div>';
  }
  search?.addEventListener('input', render);
  category?.addEventListener('change', render);

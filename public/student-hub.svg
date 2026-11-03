@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="460" viewBox="0 0 620 460" fill="none">
+<defs><linearGradient id="bg" x1="50" y1="30" x2="570" y2="450" gradientUnits="userSpaceOnUse"><stop stop-color="#d4eee4"/><stop offset="1" stop-color="#edf6ee"/></linearGradient><filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#12533d" flood-opacity=".09"/></filter></defs>
+<rect x="15" y="12" width="590" height="430" rx="40" fill="url(#bg)"/>
+<circle cx="310" cy="225" r="173" stroke="#b4d6c9" stroke-dasharray="4 9"/><circle cx="310" cy="225" r="120" stroke="#b4d6c9"/>
+<g filter="url(#shadow)"><rect x="128" y="64" width="368" height="300" rx="22" fill="white"/><path d="M128 86a22 22 0 0 1 22-22h324a22 22 0 0 1 22 22v35H128Z" fill="#176449"/>
+<circle cx="151" cy="93" r="4" fill="#b3dec9"/><circle cx="165" cy="93" r="4" fill="#b3dec9"/><circle cx="179" cy="93" r="4" fill="#b3dec9"/>
+<text x="461" y="98" text-anchor="end" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#fff">YOUR STUDENT SPACE</text>
+<text x="153" y="159" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#163d32">Your student dashboard</text>
+<rect x="153" y="177" width="170" height="6" rx="3" fill="#e1eae5"/>
+<rect x="153" y="207" width="144" height="110" rx="13" fill="#edf6f1"/>
+<rect x="171" y="225" width="31" height="34" rx="6" stroke="#25815f" stroke-width="2"/><path d="M171 237h31m-23-17v10m15-10v10m-16 18h5m6 0h5" stroke="#25815f" stroke-width="2"/>
+<text x="171" y="284" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#24513f">Plan your semester</text>
+<rect x="171" y="295" width="86" height="4" rx="2" fill="#c8ded2"/>
+<rect x="312" y="207" width="159" height="49" rx="12" fill="#f1f3fc"/><path d="m327 227 8-4 8 4v12l-8-4-8 4Z" stroke="#7476b0" stroke-width="2" stroke-linejoin="round"/><path d="M335 223v12" stroke="#7476b0" stroke-width="2"/>
+<text x="355" y="235" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#4c4e75">Study resources</text>
+<rect x="312" y="269" width="159" height="49" rx="12" fill="#fff5e7"/><path d="M329 284h13v20h-13zm4 5h5m-5 5h5m-5 5h3" stroke="#ad783a" stroke-width="2"/>
+<text x="355" y="297" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#80602f">Latest updates</text>
+<rect x="153" y="337" width="228" height="5" rx="2.5" fill="#e8eeea"/></g>
+<g filter="url(#shadow)" transform="translate(0 42)"><rect x="29" y="283" width="182" height="70" rx="15" fill="white"/><rect x="44" y="298" width="38" height="38" rx="12" fill="#e3f3e8"/><path d="m54 317 6 6 12-13" stroke="#27835a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="94" y="313" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#244f3c">Stay one step ahead</text><text x="94" y="330" font-family="Arial,sans-serif" font-size="10" fill="#687c71">Your next chapter starts here</text></g>
+<g filter="url(#shadow)"><rect x="420" y="145" width="170" height="64" rx="15" fill="white"/><circle cx="447" cy="177" r="16" fill="#f8ecda"/><path d="M444 166h7l-5 9h6l-10 12 3-10h-5Z" fill="#b98c47"/><text x="473" y="174" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#244f3c">Less searching.</text><text x="473" y="191" font-family="Arial,sans-serif" font-size="11" fill="#687c71">More moving forward.</text></g>
+<circle cx="81" cy="148" r="7" fill="#8fc9ae"/><circle cx="544" cy="327" r="10" fill="#bddabb"/><path d="M84 380v16m-8-8h16M537 81v14m-7-7h14" stroke="#609d7e" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
