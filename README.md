@@ -34,7 +34,7 @@ Mount a persistent disk at `data/` in production. The app stores articles, sourc
 
 This environment restricts direct outbound connections to these domains, so fully live ingestion could not be validated here. Source errors are visible in the UI. No bypass of access restrictions, login, or anti-bot measures is attempted. Confirm publisher terms/robots policy before deploying ongoing collection, and obtain permission if needed.
 
-`data/seed.json` contains a **labeled initial snapshot** of ten headlines and source links inspected on 2026-10-30, with concise paraphrased excerpts. It contains no NOUN Update news records because that listing has not been verified. This is not a full historical import. The collectors track recent publicly listed articles on subsequent runs; articles no longer in a source listing remain in the archive. Undated HTML items are explicitly labeled as such. Seeded publication dates use the calendar dates shown at source. Snapshot status is not a live-sync claim.
+`data/seed.json` contains a **labeled initial snapshot** of fourteen headlines and source links reviewed on 2026-11-03, with concise paraphrased excerpts. It contains no NOUN Update news records because that listing has not been verified. This is not a full historical import. The collectors track recent publicly listed articles on subsequent runs; articles no longer in a source listing remain in the archive. Undated HTML items are explicitly labeled as such. Seeded publication dates use the calendar dates shown at source. Snapshot status is not a live-sync claim.
 
 ## Interface
 
@@ -90,3 +90,10 @@ npm run db:backup -- data/backups/archive.sqlite
 ```
 
 Treat backups as private: they contain drafts. To restore, stop the server, preserve a backup of the current database, remove its old WAL/SHM sidecars, and replace the database file with the backup before restarting. Do not copy only the main live SQLite file while writes are in progress; use the backup command. Database files and backups are excluded from Git. Recreated development workspaces can regenerate the seed database; production must retain its persistent volume and backups.
+
+
+## Editorial UI and resource directory
+
+The public site, admin workspace and original article pages share a restrained editorial theme in `public/editorial.css`, using local serif/sans-serif stacks (no external font service). The admin login page intentionally omits server setup instructions; operational setup remains documented here and in the deployment guides.
+
+`/resources.html` provides search and category filtering for 19 source-attributed external links from the previously requested providers. The reviewed directory lives in `public/resources.json`; provider links were observed on the source listings on 2026-11-03, not independently tested for every destination. These are external services, not tools implemented or hosted by Nounarchive. Provider account/payment rules may apply. The homepage highlights six resources and three article categories. Four additional BBCNOUN historical timetable notices expand the labeled snapshot; their original dates and historical context are retained. No full articles or source photographs are mirrored.

@@ -2,14 +2,16 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {parse} from 'yaml';
-test('GitHub workflows parse and production deployment is manual and branch-scoped',async()=>{
+test('GitHub workflows parse and production deployment supports main and the active branch',async()=>{
  const ci=parse(await readFile('.github/workflows/ci.yml','utf8'));
  const deploy=parse(await readFile('.github/workflows/deploy-cloudflare.yml','utf8'));
  assert.ok(ci.on.pull_request!==undefined);
  assert.ok(deploy.on.workflow_dispatch);
- assert.equal(deploy.on.push,undefined);
+ assert.deepEqual(deploy.on.push.branches,['main']);
+ assert.ok(deploy.jobs.deploy.if.includes("refs/heads/main"));
+ assert.equal(deploy.jobs.deploy.steps[0].with.ref,'${{ github.sha }}');
  assert.equal(deploy.jobs.deploy.environment,'production');
- assert.match(deploy.jobs.deploy.if,/arena\/1ab57b0b-nounarchive/);
+ assert.match(deploy.jobs.deploy.if,/arena\/bf9d8ef8-nounarchive/);
  assert.equal(deploy.concurrency['cancel-in-progress'],false);
  assert.equal(deploy.permissions.contents,'read');
  assert.ok(deploy.jobs.deploy.steps.some(step=>step.run==='npm test'));

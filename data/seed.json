@@ -1,5 +1,5 @@
 {
-  "snapshotAt": "2026-10-30",
+  "snapshotAt": "2026-11-03",
   "items": [
     {
       "id": "aa4007f916a57432",
@@ -90,7 +90,7 @@
       "source": "bbcnoun",
       "title": "NOUN POP 2025_1 Past Questions",
       "url": "https://bbcnoun.com.ng/noun-pop-2025_1-past-questions/",
-      "excerpt": "Find the original source\u2019s collection of previous examination questions.",
+      "excerpt": "Find the original source’s collection of previous examination questions.",
       "publishedAt": "2026-01-31T00:00:00.000Z",
       "category": "Examinations",
       "snapshot": true
@@ -104,12 +104,52 @@
       "publishedAt": "2026-01-31T00:00:00.000Z",
       "category": "Examinations",
       "snapshot": true
+    },
+    {
+      "id": "2821b7572c2ec129",
+      "source": "bbcnoun",
+      "title": "NOUN 2025_2 E-Examination Final Timetable",
+      "url": "https://bbcnoun.com.ng/noun-2025_2-e-examination-final-timetable/",
+      "excerpt": "Archived examination timetable published for the 2025 second semester. Refer to the original notice for its schedule; it is not a current-semester timetable.",
+      "publishedAt": "2025-11-05T07:42:36.000Z",
+      "category": "Examinations",
+      "snapshot": true
+    },
+    {
+      "id": "2db0fb1cb6bd65fc",
+      "source": "bbcnoun",
+      "title": "NOUN 2025_2 POP Final Timetable",
+      "url": "https://bbcnoun.com.ng/noun-2025_2-pop-final-timetable/",
+      "excerpt": "An archived BBCNOUN notice about the 2025 second-semester POP examination timetable. Verify your current examination dates separately.",
+      "publishedAt": "2025-09-29T16:23:01.000Z",
+      "category": "Examinations",
+      "snapshot": true
+    },
+    {
+      "id": "b52eacf81dabdfb9",
+      "source": "bbcnoun",
+      "title": "NOUN 2025_1 E-Examination Final Timetable",
+      "url": "https://bbcnoun.com.ng/noun-2025_1-e-examination-final-timetable/",
+      "excerpt": "Previous examination timetable information for the 2025 first semester, retained for reference and historical context.",
+      "publishedAt": "2025-08-02T14:00:28.000Z",
+      "category": "Examinations",
+      "snapshot": true
+    },
+    {
+      "id": "4e12c4172175d65d",
+      "source": "bbcnoun",
+      "title": "NOUN 2025_1 POP Final Timetable",
+      "url": "https://bbcnoun.com.ng/noun-2025_1-pop-final-timetable-2/",
+      "excerpt": "An earlier POP timetable notice from BBCNOUN. This historical record should not be used as a current exam schedule.",
+      "publishedAt": "2025-05-06T18:42:51.000Z",
+      "category": "Examinations",
+      "snapshot": true
     }
   ],
   "status": {
     "bbcnoun": {
       "state": "snapshot",
-      "message": "Initial source snapshot \u00b7 not a live sync"
+      "message": "Initial source snapshot · not a live sync"
     },
     "nounupdate": {
       "state": "snapshot",
@@ -117,7 +157,7 @@
     },
     "puredu": {
       "state": "snapshot",
-      "message": "Initial source snapshot \u00b7 not a live sync"
+      "message": "Initial source snapshot · not a live sync"
     }
   }
 }
