@@ -1,4 +1,5 @@
 import { DatabaseSync, backup } from 'node:sqlite';
+import {CLAIM_RESET_SQL,SAVE_RESET_SQL} from './admin-recovery.js';
 
 class Database extends DatabaseSync {
  #depth = 0;
@@ -36,6 +37,9 @@ export function openStorage(filename = process.env.DATABASE_PATH || 'data/nounar
  db.pragma('foreign_keys = ON');
  db.exec(`
  CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+ CREATE TABLE IF NOT EXISTS admin_credentials (id INTEGER PRIMARY KEY CHECK(id=1), password_hash TEXT NOT NULL, base_version TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS admin_reset_tokens (token_hash TEXT PRIMARY KEY, expires INTEGER NOT NULL);
+ INSERT OR IGNORE INTO schema_migrations(version) VALUES(3);
  CREATE TABLE IF NOT EXISTS articles (id TEXT PRIMARY KEY, source TEXT NOT NULL, published_at TEXT, data TEXT NOT NULL CHECK(json_valid(data)));
  CREATE INDEX IF NOT EXISTS articles_source_date ON articles(source, published_at DESC);
  CREATE TABLE IF NOT EXISTS archive_metadata (id INTEGER PRIMARY KEY CHECK(id=1), data TEXT NOT NULL CHECK(json_valid(data)));
@@ -67,6 +71,12 @@ export function openStorage(filename = process.env.DATABASE_PATH || 'data/nounar
  db.prepare('INSERT INTO schema_migrations(version) VALUES(2)').run();
  })();
  },
+ getAdminCredential() {return db.prepare('SELECT * FROM admin_credentials WHERE id=1').get();},
+ applyAdminReset(hash,baseVersion,tokenHash,expires) {return db.transaction(()=>{
+ const claim=db.prepare(CLAIM_RESET_SQL).run(tokenHash,expires);
+ if(!claim.changes)return false;
+ db.prepare(SAVE_RESET_SQL).run(hash,baseVersion);return true;
+ })();},
  loadArchive() {const row=db.prepare('SELECT data FROM archive_metadata WHERE id=1').get();return {...(row?JSON.parse(row.data):{status:{}}),items:db.prepare('SELECT data FROM articles ORDER BY published_at DESC').all().map(r=>JSON.parse(r.data))};},
  saveArchive,
  loadPosts() {return db.prepare('SELECT data FROM posts ORDER BY updated_at DESC, id').all().map(r=>JSON.parse(r.data));},

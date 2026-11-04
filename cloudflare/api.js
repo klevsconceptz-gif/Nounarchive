@@ -5,9 +5,15 @@ import {validatePost} from '../post-validation.js';
 import {sources,collect} from '../aggregator.js';
 import seed from '../data/seed.json';
 import {digest,randomToken,verifyPassword} from './security.js';
+import {HASH_PATTERN,CLAIM_RESET_SQL,SAVE_RESET_SQL,checkRecoveryToken,validNewPassword,makePasswordHash} from '../admin-recovery.js';
 export const api=new Hono();
 const publicSource={id:'nounarchive',name:'Nounarchive',url:'/'};
 const statement=(env,sql,...values)=>env.DB.prepare(sql).bind(...values);
+async function activeCredential(env){
+ const baseVersion=await digest(env.ADMIN_PASSWORD_HASH||'');
+ const saved=await statement(env,'SELECT * FROM admin_credentials WHERE id=1').first();
+ return {baseVersion,hash:saved?.base_version===baseVersion?saved.password_hash:env.ADMIN_PASSWORD_HASH};
+}
 const records=async(env,sql,...values)=>(await statement(env,sql,...values).all()).results;
 const postSummary=p=>({id:p.id,title:p.title,excerpt:p.excerpt,category:p.category,publishedAt:p.publishedAt,readingMinutes:Math.max(1,Math.ceil(p.content.split(/\s+/).length/200)),source:'nounarchive',url:'/post.html?id='+p.id});
 api.use('*',async(c,next)=>{
@@ -26,21 +32,40 @@ api.get('/api/archive',async c=>{
 api.get('/api/posts/:id',async c=>{
  const row=await statement(c.env,"SELECT data FROM posts WHERE id=? AND status='published'",c.req.param('id')).first();return row?c.json(JSON.parse(row.data)):c.json({error:'This post is unavailable.'},404);
 });
+api.post('/api/admin/password-reset',async c=>{
+ if(c.req.header('X-Nounarchive-Admin')!=='1')return c.json({error:'Invalid request.'},403);
+ const now=Date.now(),ip=await digest('reset:'+(c.req.header('CF-Connecting-IP')||'local'));
+ const attempt=await statement(c.env,`INSERT INTO login_attempts(ip_hash,attempts,expires) VALUES(?,1,?) ON CONFLICT(ip_hash) DO UPDATE SET attempts=CASE WHEN expires<? THEN 1 ELSE attempts+1 END, expires=CASE WHEN expires<? THEN ? ELSE expires END RETURNING attempts`,ip,now+900000,now,now,now+900000).first();
+ if(attempt.attempts>5)return c.json({error:'Too many recovery attempts. Try again in 15 minutes.'},429);
+ const body=await c.req.json().catch(()=>null),recovery=await checkRecoveryToken(body?.token,c.env.ADMIN_RESET_TOKEN_HASH);
+ if(!recovery)return c.json({error:'Recovery token is invalid, expired, or already used. Ask the site owner for a fresh token.'},400);
+ if(!validNewPassword(body?.newPassword))return c.json({error:'Use a password between 12 and 1024 characters.'},400);
+ const hash=await makePasswordHash(body.newPassword),baseVersion=await digest(c.env.ADMIN_PASSWORD_HASH||'');
+ if(recovery.expires<=Date.now())return c.json({error:'Recovery token expired. Ask the site owner for a fresh token.'},400);
+ const results=await c.env.DB.batch([
+ statement(c.env,CLAIM_RESET_SQL,recovery.hash,recovery.expires),statement(c.env,SAVE_RESET_SQL,hash,baseVersion),
+ statement(c.env,'DELETE FROM admin_sessions WHERE EXISTS (SELECT 1 FROM admin_credentials WHERE password_hash=?)',hash)
+ ]);
+ if(!results[0].meta.changes)return c.json({error:'Recovery token is invalid, expired, or already used. Ask the site owner for a fresh token.'},400);
+ await statement(c.env,'DELETE FROM login_attempts WHERE ip_hash=?',await digest(c.req.header('CF-Connecting-IP')||'local')).run();
+ deleteCookie(c,'nounarchive_admin',{path:'/api/admin'});return c.json({ok:true});
+});
 api.post('/api/admin/login',async c=>{
- if(!/^pbkdf2-sha256\$100000\$[a-f0-9]{64}\$[a-f0-9]{64}$/.test(c.env.ADMIN_PASSWORD_HASH||''))return c.json({error:'Admin is not configured. Set the ADMIN_PASSWORD_HASH Worker/Pages secret using npm run cf:admin-hash.'},503);
+ const credential=await activeCredential(c.env);
+ if(!HASH_PATTERN.test(credential.hash||''))return c.json({error:'Admin is not configured. Set the ADMIN_PASSWORD_HASH Worker/Pages secret using npm run cf:admin-hash.'},503);
  if(c.req.header('X-Nounarchive-Admin')!=='1')return c.json({error:'Invalid request.'},403);
  const now=Date.now(),ip=await digest(c.req.header('CF-Connecting-IP')||'local');
  const attempt=await statement(c.env,`INSERT INTO login_attempts(ip_hash,attempts,expires) VALUES(?,1,?) ON CONFLICT(ip_hash) DO UPDATE SET attempts=CASE WHEN expires<? THEN 1 ELSE attempts+1 END, expires=CASE WHEN expires<? THEN ? ELSE expires END RETURNING attempts`,ip,now+900000,now,now,now+900000).first();
  if(attempt.attempts>5)return c.json({error:'Too many login attempts. Try again in 15 minutes.'},429);
- const body=await c.req.json();if(!await verifyPassword(body.password,c.env.ADMIN_PASSWORD_HASH))return c.json({error:'Incorrect password.'},401);
- const token=randomToken(),csrf=randomToken(),hash=await digest(token),version=await digest(c.env.ADMIN_PASSWORD_HASH);
+ const body=await c.req.json();if(!await verifyPassword(body.password,credential.hash))return c.json({error:'Incorrect password.'},401);
+ const token=randomToken(),csrf=randomToken(),hash=await digest(token),version=await digest(credential.hash);
  await c.env.DB.batch([statement(c.env,'DELETE FROM login_attempts WHERE ip_hash=?',ip),statement(c.env,'INSERT INTO admin_sessions(token_hash,csrf,credential_version,expires) VALUES(?,?,?,?)',hash,csrf,version,now+28800000)]);
  setCookie(c,'nounarchive_admin',token,{httpOnly:true,secure:new URL(c.req.url).protocol==='https:',sameSite:'Strict',path:'/api/admin',maxAge:28800});return c.json({csrf});
 });
 api.use('/api/admin/*',async(c,next)=>{
- const token=getCookie(c,'nounarchive_admin');if(!token||!c.env.ADMIN_PASSWORD_HASH)return c.json({error:'Please sign in to continue.'},401);
+ const token=getCookie(c,'nounarchive_admin');if(!token)return c.json({error:'Please sign in to continue.'},401);
  const tokenHash=await digest(token),session=await statement(c.env,'SELECT * FROM admin_sessions WHERE token_hash=? AND expires>?',tokenHash,Date.now()).first();
- if(!session||session.credential_version!==await digest(c.env.ADMIN_PASSWORD_HASH))return c.json({error:'Please sign in to continue.'},401);
+ if(!session||session.credential_version!==await digest((await activeCredential(c.env)).hash||''))return c.json({error:'Please sign in to continue.'},401);
  if(c.req.method!=='GET'&&(c.req.header('X-CSRF-Token')!==session.csrf||c.req.header('X-Nounarchive-Admin')!=='1'))return c.json({error:'Invalid session request. Refresh and sign in again.'},403);
  c.set('session',session);c.set('tokenHash',tokenHash);await next();
 });

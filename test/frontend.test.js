@@ -102,3 +102,18 @@ test('homepage preserves internal editorial links but never links to foreign or 
  d.querySelector('[data-save="own"]').click();d.getElementById('saved-nav').click();assert.equal(d.querySelectorAll('#cards .card').length,1);
  }finally{dom.window.close();}
 });
+
+test('admin recovery form validates confirmation, posts tokens only in request body, and returns to login',async()=>{
+ const dom=new JSDOM(await readFile('public/admin.html','utf8'),{url:'https://nounarchive.test/admin.html',runScripts:'outside-only'});
+ try{
+ const w=dom.window,calls=[];w.fetch=async(url,options={})=>{calls.push({url,...options});return url.endsWith('/password-reset')?{ok:true,json:async()=>({ok:true})}:{ok:false,status:401,json:async()=>({error:'Please sign in.'})};};
+ w.eval(await readFile('public/admin-client.js','utf8'));await new Promise(r=>setTimeout(r,10));
+ const d=w.document;assert.equal(d.getElementById('reset-panel').hidden,true);d.getElementById('open-reset').click();assert.equal(d.getElementById('login-panel').hidden,true);assert.equal(d.getElementById('reset-panel').hidden,false);
+ d.getElementById('reset-token').value='a'.repeat(64);d.getElementById('new-password').value='test-new-password';d.getElementById('confirm-password').value='not-the-same-password';
+ const form=d.getElementById('reset-form'),button=form.querySelector('[type=submit]');
+ form.dispatchEvent(new w.SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:button}));assert.match(d.getElementById('message').textContent,/do not match/);assert.equal(calls.filter(c=>c.url.endsWith('/password-reset')).length,0);
+ d.getElementById('confirm-password').value='test-new-password';form.dispatchEvent(new w.SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:button}));await new Promise(r=>setTimeout(r,10));
+ const call=calls.find(c=>c.url.endsWith('/password-reset'));assert.equal(call.url,'/api/admin/password-reset');assert.equal(call.method,'POST');assert.equal(call.headers['X-Nounarchive-Admin'],'1');assert.deepEqual(JSON.parse(call.body),{token:'a'.repeat(64),newPassword:'test-new-password'});
+ assert.equal(d.getElementById('login-panel').hidden,false);assert.equal(d.getElementById('reset-panel').hidden,true);assert.equal(d.getElementById('reset-token').value,'');assert.equal(d.getElementById('new-password').value,'');assert.match(d.getElementById('message').textContent,/Password reset/);
+ }finally{dom.window.close();}
+});

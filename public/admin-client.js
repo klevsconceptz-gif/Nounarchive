@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 let csrf='', posts=[], selected=null, dirty=false, busy=false;
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function message(text,error=false){$('message').textContent=text;$('message').className=error?'error':'success';}
-function showLogin(){csrf='';posts=[];selected=null;$('post-form').reset();$('post-list').replaceChildren();$('workspace').hidden=true;$('login-panel').hidden=false;}
+function showLogin(){$('reset-panel').hidden=true;$('reset-form').reset();csrf='';posts=[];selected=null;$('post-form').reset();$('post-list').replaceChildren();$('workspace').hidden=true;$('login-panel').hidden=false;}
 async function api(path,options={}){
  const response=await fetch('/api/admin'+path,{...options,headers:{'Content-Type':'application/json','X-Nounarchive-Admin':'1','X-CSRF-Token':csrf,...options.headers}});
  const body=await response.json();if(!response.ok){if(response.status===401 && path!=='/login')showLogin();throw Error(body.error||'Request failed.');}return body;
@@ -18,6 +18,16 @@ function edit(post=null){selected=post?.id||null;dirty=false;$('title').value=po
 function canLeave(){return !busy&&(!dirty||confirm('Discard your unsaved changes?'));}
 async function enter(){posts=await api('/posts');$('login-panel').hidden=true;$('workspace').hidden=false;edit();}
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{const result=await api('/login',{method:'POST',body:JSON.stringify({password:$('password').value})});csrf=result.csrf;$('password').value='';await enter();message('Signed in. Welcome to your editorial desk.');}catch(e){message(e.message,true);}finally{button.disabled=false;}});
+$('open-reset').addEventListener('click',()=>{$('login-panel').hidden=true;$('reset-panel').hidden=false;message('');$('password').value='';$('reset-token').focus();});
+$('cancel-reset').addEventListener('click',()=>{showLogin();message('');$('password').focus();});
+$('reset-form').addEventListener('submit',async e=>{
+ e.preventDefault();const button=e.submitter;
+ if($('new-password').value!==$('confirm-password').value){message('The new passwords do not match.',true);return;}
+ button.disabled=true;
+ try{await api('/password-reset',{method:'POST',body:JSON.stringify({token:$('reset-token').value,newPassword:$('new-password').value})});showLogin();$('password').value='';message('Password reset. All previous sessions have ended. Sign in with your new password.');$('password').focus();}
+ catch(error){message(error.message,true);}
+ finally{button.disabled=false;}
+});
 $('post-form').addEventListener('input',()=>{dirty=true;});$('visibility').addEventListener('change',()=>{dirty=true;updateButton();});
 $('post-form').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;busy=true;$('save-post').disabled=true;try{const fields={title:$('title').value,content:$('content').value,excerpt:$('excerpt').value,category:$('category').value,status:$('visibility').value};const post=await api(selected?'/posts/'+selected:'/posts',{method:selected?'PUT':'POST',body:JSON.stringify(fields)});posts=await api('/posts');edit(post);message(post.status==='published'?'Published! Your update is now visible on the website.':'Draft saved. Only the admin can see it.');}catch(e){message(e.message,true);}finally{busy=false;$('save-post').disabled=false;}});
 $('post-list').addEventListener('click',e=>{const id=e.target.closest('[data-id]')?.dataset.id;if(id&&canLeave())edit(posts.find(p=>p.id===id));});
