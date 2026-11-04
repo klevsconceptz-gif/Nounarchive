@@ -3,6 +3,7 @@ import {getCookie,setCookie,deleteCookie} from 'hono/cookie';
 import {bodyLimit} from 'hono/body-limit';
 import {validatePost} from '../post-validation.js';
 import {sources,collect} from '../aggregator.js';
+import {mergeArticle} from '../news-sync.js';
 import seed from '../data/seed.json';
 import {digest,randomToken,verifyPassword} from './security.js';
 import {HASH_PATTERN,CLAIM_RESET_SQL,SAVE_RESET_SQL,checkRecoveryToken,validNewPassword,makePasswordHash} from '../admin-recovery.js';
@@ -94,7 +95,9 @@ export async function syncSources(env){
  const checkedAt=new Date().toISOString();let status;
  try{
  const items=await collect(source);
- const writes=items.map(item=>statement(env,'INSERT INTO articles(id,source,published_at,data) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET source=excluded.source,published_at=excluded.published_at,data=excluded.data',item.id,item.source,item.publishedAt,JSON.stringify({...item,verifiedAt:checkedAt})));
+ const existing=await records(env,'SELECT data FROM articles WHERE source=?',source.id);
+ const previous=new Map([...seed.items.filter(item=>item.source===source.id),...existing.map(row=>JSON.parse(row.data))].map(item=>[item.id,item]));
+ const writes=items.map(incoming=>{const item=mergeArticle(previous.get(incoming.id),incoming,checkedAt);return statement(env,'INSERT INTO articles(id,source,published_at,data) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET source=excluded.source,published_at=excluded.published_at,data=excluded.data',item.id,item.source,item.publishedAt,JSON.stringify(item));});
  for(let i=0;i<writes.length;i+=50)await env.DB.batch(writes.slice(i,i+50));
  status={state:'ok',checkedAt,lastSuccess:checkedAt,message:`${items.length} articles found`};
  }catch(error){const old=await statement(env,'SELECT data FROM source_status WHERE source=?',source.id).first();status={...(old?JSON.parse(old.data):{}),state:'error',checkedAt,message:error.message};}

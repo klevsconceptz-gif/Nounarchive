@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 let data = {items:[],sources:[],status:{}}, category = 'All updates', savedOnly = false, limit = 6;
+let hasLoaded = false;
 let saved; try { saved = new Set(JSON.parse(localStorage.getItem('nounarchive-saved') || '[]')); } catch { saved = new Set(); }
 const categories = ['All updates','Examinations','Academics','Admissions','Graduation','Campus news'];
 const escape = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -48,7 +49,7 @@ function render() {
 function renderStatus(){
  $('notice').textContent=data.syncing?'Updating the archive…':'';
 }
-async function load(){try{const response=await fetch('/api/archive');if(!response.ok)throw Error();data=await response.json();render();renderFeatured();renderStatus();}catch{$('notice').textContent='The archive is temporarily unavailable. Please try again shortly.';$('result-count').textContent='Connection unavailable';$('featured').textContent='The latest story is temporarily unavailable.';}}
+async function load(){try{const response=await fetch('/api/archive');if(!response.ok)throw Error();data=await response.json();render();renderFeatured();renderStatus();hasLoaded=true;}catch{$('notice').textContent='';if(!hasLoaded){$('result-count').textContent='';$('featured').replaceChildren();}}}
 $('categories').addEventListener('click',e=>{if(e.target.dataset.category){category=e.target.dataset.category;limit=6;render();}});
 $('cards').addEventListener('click',e=>{const id=e.target.closest('[data-save]')?.dataset.save;if(!id)return;saved.has(id)?saved.delete(id):saved.add(id);try{localStorage.setItem('nounarchive-saved',JSON.stringify([...saved]));}catch{$('notice').textContent='Bookmarks cannot be persisted because browser storage is unavailable.';}render();});
 for(const id of ['search','sort']) $(id).addEventListener(id==='search'?'input':'change',()=>{limit=6;render();});

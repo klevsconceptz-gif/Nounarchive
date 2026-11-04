@@ -43,6 +43,8 @@ test('resource directory filters reviewed external links and handles no matches'
  await new Promise(r=>setTimeout(r,10));
  const d=dom.window.document;
  assert.equal(d.querySelectorAll('.resource-card').length,19);
+ assert.doesNotMatch(d.body.textContent,/BBCNOUN|NOUN Update|Puredu|Our sources/);
+ for(const tag of d.querySelectorAll('.resource-link'))assert.equal(tag.textContent,'Open resource↗');
  for(const link of d.querySelectorAll('.resource-card')){assert.match(link.href,/^https:\/\/(nounupdate\.com|bbcnoun\.com\.ng|puredu\.net)\//);assert.equal(link.getAttribute('rel'),'noopener noreferrer');}
  const select=d.getElementById('resource-category');select.value='Admissions';select.dispatchEvent(new dom.window.Event('change'));assert.equal(d.querySelectorAll('.resource-card').length,4);
  const search=d.getElementById('resource-search');search.value='nonexistent resource';search.dispatchEvent(new dom.window.Event('input'));assert.equal(d.querySelectorAll('.resource-card').length,0);assert.match(d.getElementById('resource-cards').textContent,/No resources found/);
@@ -116,4 +118,24 @@ test('admin recovery form validates confirmation, posts tokens only in request b
  const call=calls.find(c=>c.url.endsWith('/password-reset'));assert.equal(call.url,'/api/admin/password-reset');assert.equal(call.method,'POST');assert.equal(call.headers['X-Nounarchive-Admin'],'1');assert.deepEqual(JSON.parse(call.body),{token:'a'.repeat(64),newPassword:'test-new-password'});
  assert.equal(d.getElementById('login-panel').hidden,false);assert.equal(d.getElementById('reset-panel').hidden,true);assert.equal(d.getElementById('reset-token').value,'');assert.equal(d.getElementById('new-password').value,'');assert.match(d.getElementById('message').textContent,/Password reset/);
  }finally{dom.window.close();}
+});
+
+test('archive failures omit connection copy, clear initial placeholders and preserve loaded stories',async()=>{
+ const html=await readFile('public/index.html','utf8'),script=await readFile('public/app.js','utf8');
+ const seed=JSON.parse(await readFile('data/seed.json','utf8'));
+ for(const mode of ['network','http','refresh']){
+ const dom=new JSDOM(html,{url:'https://nounarchive.test/',runScripts:'outside-only'});
+ try{
+ const w=dom.window;let fail=mode!=='refresh',refresh;
+ w.setInterval=fn=>{refresh=fn;return 0;};
+ w.fetch=async()=>{if(fail){if(mode==='http')return {ok:false};throw Error('Network unavailable');}return {ok:true,json:async()=>({...seed,sources})};};
+ w.eval(script);await new Promise(r=>setTimeout(r,10));const d=w.document;
+ if(mode==='refresh'){
+ const cards=d.getElementById('cards').innerHTML,featured=d.getElementById('featured').innerHTML,count=d.getElementById('result-count').textContent;
+ assert.ok(d.querySelector('.lead-story'));fail=true;await refresh();
+ assert.equal(d.getElementById('cards').innerHTML,cards);assert.equal(d.getElementById('featured').innerHTML,featured);assert.equal(d.getElementById('result-count').textContent,count);
+ }else{assert.equal(d.getElementById('result-count').textContent,'');assert.equal(d.getElementById('featured').textContent,'');}
+ assert.equal(d.getElementById('notice').textContent,'');assert.doesNotMatch(d.body.textContent,/Connection unavailable|The archive is temporarily unavailable|The latest story is temporarily unavailable/);
+ }finally{dom.window.close();}
+ }
 });

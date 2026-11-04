@@ -31,37 +31,46 @@ export function parsePage(html, source) {
  const $ = cheerio.load(html); const results = [];
  $('h1 a, h2 a, h3 a, h4 a, article a').each((_, el) => {
  const a = $(el); const href = a.attr('href'); if (!href) return;
+ // Ignore image-only links and generic calls to action, even inside <article>.
+ const title=clean(a.text());
+ if(title.length<12||/^(read (?:more|story|update|full story)|continue reading|view (?:story|update|details))(?:[\s.!→↗…]|$)/i.test(title))return;
  if (source.id === 'puredu' && !href.includes('/post/')) return;
  if (source.id === 'nounupdate' && !/news\/[^/?#]+|news-details|news_detail|view-news|news\.php\?/.test(href)) return;
  const block = a.closest('article').length ? a.closest('article') : a.parent().parent();
  const blockText = block.find('time, li, p, span').map((_, el) => clean($(el).text())).get().join(' ') || clean(block.text());
  const date = block.find('time').attr('datetime') || blockText.match(/(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}/)?.[0];
- const record = item(source, a.text(), href, block.find('p').first().text(), date);
+ const record = item(source, title, href, block.find('p').first().text(), date);
  if (record) {
  const minutes = blockText.match(/\b(\d{1,3})\s+mins?\b/i);
  if (minutes) record.readingMinutes = Math.max(1, Number(minutes[1]));
  results.push(record);
  }
  });
- return [...new Map(results.map(r => [r.id, r])).values()];
+ const unique=new Map();
+ for(const record of results){const previous=unique.get(record.id);unique.set(record.id,previous?{...previous,publishedAt:previous.publishedAt||record.publishedAt,excerpt:previous.excerpt||record.excerpt,readingMinutes:previous.readingMinutes||record.readingMinutes}:record);}
+ return [...unique.values()];
 }
-async function request(url, redirects = 0) {
- const response = await fetch(url, { signal: AbortSignal.timeout(15000), redirect: 'manual', headers: { 'User-Agent': 'Nounarchive/1.0 (public headline index; hourly refresh)', Accept: 'application/rss+xml, text/html;q=0.9' } });
+async function request(url, redirects = 0, fetcher = fetch) {
+ const response = await fetcher(url, { signal: AbortSignal.timeout(15000), redirect: 'manual', headers: { 'User-Agent': 'Nounarchive/1.0 (public headline index; hourly refresh)', Accept: 'application/rss+xml, text/html;q=0.9' } });
  if (response.status >= 300 && response.status < 400) {
  const next = new URL(response.headers.get('location'), url);
  if (redirects >= 3 || next.origin !== new URL(url).origin) throw new Error('Unsupported source redirect');
- return request(next.href, redirects + 1);
+ return request(next.href, redirects + 1, fetcher);
  }
  if (!response.ok) throw new Error(`Source returned HTTP ${response.status}`);
  const reader = response.body.getReader(); let bytes = 0; const chunks = [];
  while (true) { const { done, value } = await reader.read(); if (done) break; bytes += value.length; if (bytes > 3_000_000) { await reader.cancel(); throw new Error('Source response too large'); } chunks.push(Buffer.from(value)); }
  return Buffer.concat(chunks).toString('utf8');
 }
-export async function collect(source) {
+export async function collect(source, fetcher = fetch) {
+ const failures=[];
  for (const endpoint of source.endpoints) {
- const text = await request(endpoint);
+ try {
+ const text = await request(endpoint,0,fetcher);
  const entries = endpoint.includes('/feed') ? parseFeed(text, source) : parsePage(text, source);
  if (entries.length) return entries;
+ failures.push('No articles found. Source layout or feed may have changed.');
+ } catch(error){failures.push(error.message);}
  }
- throw new Error('No articles found. Source layout or feed may have changed.');
+ throw new Error(failures.join('; ') || 'No source endpoints configured.');
 }

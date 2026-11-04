@@ -1,6 +1,6 @@
 /* Nounarchive student-platform theme. Original graphics; system fonts, no remote assets. */
 :root {
-  --ink:#183e32; --muted:#5e7168; --paper:#f7faf8; --line:#dfe9e3;
+  --ink:#183e32; --muted:#5e7168; --paper:#f2f7fc; --line:#dfe9e3;
   --lime:#e4f3bb; --sans:'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif;
   --serif:var(--sans); --platform-green:#176449;
 }
