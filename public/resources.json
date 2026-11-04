@@ -131,12 +131,12 @@
     "title": "News & announcements",
     "category": "News & announcements",
     "url": "https://nounupdate.com/news/",
-    "description": "Open NOUN Update\u2019s newsroom for the latest information available at source.",
+    "description": "Open the newsroom for the latest available announcements.",
     "source": "NOUN Update",
     "reviewedAt": "2026-11-03"
   },
   {
-    "title": "BBCNOUN news archive",
+    "title": "University news archive",
     "category": "News & announcements",
     "url": "https://bbcnoun.com.ng/",
     "description": "Browse NOUN examination notices, academic updates and previous reports.",
@@ -144,7 +144,7 @@
     "reviewedAt": "2026-11-03"
   },
   {
-    "title": "Puredu campus reporting",
+    "title": "Campus reporting",
     "category": "News & announcements",
     "url": "https://puredu.net/",
     "description": "Read reporting on study centres, programmes and the university community.",

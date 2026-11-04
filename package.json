@@ -9,6 +9,7 @@
     "test": "npm run cf:check && npm run pages:build && node --test",
     "admin:recovery-token": "node scripts/admin-recovery-token.js",
     "admin:setup": "node scripts/setup-admin.js",
+    "news:sync": "node scripts/sync-news.js",
     "db:init": "node scripts/db-init.js",
     "db:backup": "node scripts/db-backup.js",
     "cf:dev": "wrangler dev",

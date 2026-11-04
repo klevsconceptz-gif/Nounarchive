@@ -101,3 +101,11 @@ The public site, admin workspace and original article pages share a restrained e
 ## Admin password recovery
 
 The admin sign-in screen includes an owner-assisted **Reset password** flow with expiring, single-use tokens, persistent password updates, rate limiting and session revocation. It does not send recovery email or expose an unauthenticated token-generation endpoint. See [ADMIN-RECOVERY.md](ADMIN-RECOVERY.md) for deployment, the `admin:recovery-token` command, and secure Worker/Pages/Node setup.
+
+## Hourly news imports
+
+The Node server imports headlines and short summaries on startup and every 60 minutes while running, unless `DISABLE_SYNC=1`. The full Cloudflare Worker uses the `0 * * * *` UTC cron trigger. Pages requires the separate `nounarchive-scheduler` Worker to be deployed against the same D1 database; Pages Functions alone do not execute cron jobs. Deploy only one collector for a given production database to avoid redundant requests.
+
+For an immediate local SQLite refresh, run `npm run news:sync`. It records each provider's actual result and exits nonzero when any provider fails. Restart a running Node server afterward so its in-memory archive reads the refreshed database. This local command does not update production D1. Browsers check the app's archive API every minute, independently of hourly source imports. Existing headlines and their known publication dates are retained on failures or incomplete upstream metadata. No automatic full-article copying is performed.
+
+Source-name tags are omitted from public news/resource cards; origin URLs and IDs are retained in stored records for deduplication and maintenance. This presentation change does not claim ownership of third-party content. Imported news remains non-linked on the landing page as requested; the separate resources directory still opens external tools. A successful build does not establish successful live source imports or deployed cron operation. Verify production run timestamps in the archive API/Cloudflare logs after deployment.
