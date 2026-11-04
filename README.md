@@ -97,3 +97,7 @@ Treat backups as private: they contain drafts. To restore, stop the server, pres
 The public site, admin workspace and original article pages share a restrained editorial theme in `public/editorial.css`, using local serif/sans-serif stacks (no external font service). The admin login page intentionally omits server setup instructions; operational setup remains documented here and in the deployment guides.
 
 `/resources.html` provides search and category filtering for 19 source-attributed external links from the previously requested providers. The reviewed directory lives in `public/resources.json`; provider links were observed on the source listings on 2026-11-03, not independently tested for every destination. These are external services, not tools implemented or hosted by Nounarchive. Provider account/payment rules may apply. The homepage highlights six resources and three article categories. Four additional BBCNOUN historical timetable notices expand the labeled snapshot; their original dates and historical context are retained. No full articles or source photographs are mirrored.
+
+## Admin password recovery
+
+The admin sign-in screen includes an owner-assisted **Reset password** flow with expiring, single-use tokens, persistent password updates, rate limiting and session revocation. It does not send recovery email or expose an unauthenticated token-generation endpoint. See [ADMIN-RECOVERY.md](ADMIN-RECOVERY.md) for deployment, the `admin:recovery-token` command, and secure Worker/Pages/Node setup.

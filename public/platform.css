@@ -183,3 +183,8 @@ footer p { font-size:13px; }
   footer { gap:16px; }
 }
 @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } *,*::before,*::after { transition:none!important; } }
+
+/* Recovery controls remain large and readable on narrow admin screens. */
+.reset-link{display:block;width:100%;margin-top:14px;min-height:44px;background:#f0f6f2;border:1px solid var(--line);padding:11px 14px;color:var(--ink)}
+#reset-panel[hidden]{display:none}
+#reset-panel input{width:100%;min-width:0}
