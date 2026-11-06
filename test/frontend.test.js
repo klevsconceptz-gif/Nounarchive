@@ -139,3 +139,14 @@ test('archive failures omit connection copy, clear initial placeholders and pres
  }finally{dom.window.close();}
  }
 });
+
+test('public pages omit disclaimer copy while retaining admin security guidance',async()=>{
+ for(const name of ['index','resources','post']){
+ const dom=new JSDOM(await readFile('public/'+name+'.html','utf8'));
+ try{const d=dom.window.document;assert.equal(d.querySelectorAll('.resource-disclaimer').length,0);assert.doesNotMatch(d.body.textContent,/not affiliated|independent student|original providers|not these external services|not guaranteed|confirm time-sensitive/i);}finally{dom.window.close();}
+ }
+ const resources=JSON.parse(await readFile('public/resources.json','utf8'));
+ for(const item of resources)assert.doesNotMatch(item.description,/verify payable|confirm eligibility and deadlines at source/i);
+ const admin=new JSDOM(await readFile('public/admin.html','utf8'));
+ try{assert.match(admin.window.document.getElementById('reset-panel').textContent,/Tokens expire after 15 minutes/);}finally{admin.window.close();}
+});
