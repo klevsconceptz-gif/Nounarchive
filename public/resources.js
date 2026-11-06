@@ -5,6 +5,9 @@
  const category = document.getElementById('resource-category');
  const count = document.getElementById('resource-count');
  const escape = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+ const parameters=new URLSearchParams(location.search);
+ if(search)search.value=parameters.get('q')||'';
+ if(category&&[...category.options].some(option=>option.value===parameters.get('category')))category.value=parameters.get('category');
  let resources = [];
  function render() {
   const query = (search?.value || '').trim().toLowerCase();

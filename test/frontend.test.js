@@ -150,3 +150,26 @@ test('public pages omit disclaimer copy while retaining admin security guidance'
  const admin=new JSDOM(await readFile('public/admin.html','utf8'));
  try{assert.match(admin.window.document.getElementById('reset-panel').textContent,/Tokens expire after 15 minutes/);}finally{admin.window.close();}
 });
+
+test('student hub search, quick access and exclusive directory use working internal destinations',async()=>{
+ const dom=new JSDOM(await readFile('public/index.html','utf8'),{url:'https://nounarchive.test/',runScripts:'outside-only'});
+ try{
+ const w=dom.window,seed=JSON.parse(await readFile('data/seed.json','utf8'));w.fetch=async()=>({ok:true,json:async()=>({...seed,sources})});w.setInterval=()=>0;w.matchMedia=()=>({matches:true});w.HTMLElement.prototype.scrollIntoView=()=>{};
+ w.eval(await readFile('public/app.js','utf8'));w.eval(await readFile('public/hub.js','utf8'));await new Promise(r=>setTimeout(r,10));
+ const d=w.document;assert.equal(d.querySelectorAll('.quick-access>a').length,6);assert.equal(d.querySelectorAll('.student-journey .journey-grid>a').length,3);
+ d.getElementById('hub-query').value='cosmetology';d.getElementById('hub-search').dispatchEvent(new w.Event('submit',{cancelable:true}));assert.equal(d.getElementById('search').value,'cosmetology');assert.equal(d.querySelectorAll('#cards .card').length,1);
+ const groups=d.querySelectorAll('.directory-groups details');groups[1].open=true;groups[1].dispatchEvent(new w.Event('toggle'));assert.equal(groups[0].open,false);assert.equal(groups[1].open,true);
+ for(const a of d.querySelectorAll('a[href]'))assert.equal(new URL(a.href).origin,w.location.origin);
+ }finally{dom.window.close();}
+});
+test('resource directory accepts quick-access search and journey category parameters',async()=>{
+ const resources=JSON.parse(await readFile('public/resources.json','utf8'));
+ for(const query of ['?q=result','?category=Admissions']){
+ const dom=new JSDOM(await readFile('public/resources.html','utf8'),{url:'https://nounarchive.test/resources.html'+query,runScripts:'outside-only'});
+ try{
+ const w=dom.window;w.fetch=async()=>({ok:true,json:async()=>resources});w.eval(await readFile('public/resources.js','utf8'));await new Promise(r=>setTimeout(r,10));const d=w.document;
+ assert.ok(d.querySelectorAll('.resource-card').length>0);
+ if(query.includes('Admissions')){assert.equal(d.getElementById('resource-category').value,'Admissions');assert.equal(d.querySelectorAll('.resource-card').length,4);}else assert.equal(d.getElementById('resource-search').value,'result');
+ }finally{dom.window.close();}
+ }
+});
