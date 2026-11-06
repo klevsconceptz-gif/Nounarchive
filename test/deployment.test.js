@@ -33,3 +33,15 @@ test('Cloudflare targets share D1 binding and migration path',async()=>{
  assert.equal(pages.triggers,undefined);
  assert.deepEqual(worker.triggers.crons,scheduler.triggers.crons);
 });
+
+test('every workflow action reference is pinned to a full commit SHA',async()=>{
+ const {readdir}=await import('node:fs/promises');
+ for(const name of await readdir('.github/workflows')){
+ if(!/\.ya?ml$/.test(name))continue;
+ const workflow=parse(await readFile('.github/workflows/'+name,'utf8'));
+ for(const job of Object.values(workflow.jobs||{})){
+ const references=[job.uses,...(job.steps||[]).map(step=>step.uses)].filter(Boolean);
+ for(const ref of references){if(ref.startsWith('./'))continue;assert.match(ref,/^[\w.-]+\/[\w./-]+@[a-f0-9]{40}$/,'Unpinned action in '+name+': '+ref);}
+ }
+ }
+});
