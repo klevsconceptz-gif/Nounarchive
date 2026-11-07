@@ -45,3 +45,14 @@ test('every workflow action reference is pinned to a full commit SHA',async()=>{
  }
  }
 });
+
+test('Worker and scheduler observability redact queries without persisting invocation logs',async()=>{
+ for(const file of ['wrangler.jsonc','wrangler.scheduler.jsonc']){
+ const {observability}=JSON.parse(await readFile(file,'utf8'));
+ assert.deepEqual(observability,{
+ enabled:true,head_sampling_rate:1,redact_query_string:true,
+ logs:{enabled:true,head_sampling_rate:1,invocation_logs:true,persist:false},
+ traces:{enabled:false,head_sampling_rate:1,persist:true}
+ },file);
+ }
+});
