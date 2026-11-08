@@ -36,7 +36,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
-          ADMIN_PASSWORD_HASH: ${{ secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}
+          ADMIN_PASSWORD_HASH: ${{ secrets.Admin_password_hash || secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}
         run: |
           node --input-type=module - <<'JS'
           for (const name of ['CLOUDFLARE_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','D1_DATABASE_ID','ADMIN_PASSWORD_HASH']) {
@@ -57,7 +57,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          ADMIN_PASSWORD_HASH: ${{ secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}
+          ADMIN_PASSWORD_HASH: ${{ secrets.Admin_password_hash || secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}
         run: |
           npm run cf:deploy
           printf '%s' "$ADMIN_PASSWORD_HASH" | npx wrangler secret put ADMIN_PASSWORD_HASH
@@ -66,7 +66,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          ADMIN_PASSWORD_HASH: ${{ secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}
+          ADMIN_PASSWORD_HASH: ${{ secrets.Admin_password_hash || secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}
           DEPLOY_BRANCH: ${{ github.ref_name }}
         run: |
           printf '%s' "$ADMIN_PASSWORD_HASH" | npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name nounarchive
