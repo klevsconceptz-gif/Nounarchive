@@ -56,3 +56,10 @@ test('Worker and scheduler observability redact queries without persisting invoc
  },file);
  }
 });
+
+test('deployment accepts a generic repository admin hash with the legacy secret as fallback',async()=>{
+ const workflow=parse(await readFile('.github/workflows/deploy-cloudflare.yml','utf8'));
+ const steps=workflow.jobs.deploy.steps.filter(step=>step.env?.ADMIN_PASSWORD_HASH);
+ assert.equal(steps.length,3);
+ for(const step of steps)assert.equal(step.env.ADMIN_PASSWORD_HASH,'${{ secrets.Admin_password_hash || secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}');
+});
