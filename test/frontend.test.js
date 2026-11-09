@@ -34,7 +34,7 @@ test('login screen omits setup instructions while preserving password login and 
  assert.ok(dom.window.document.querySelector('link[href="/editorial.css"]'));
  }finally{dom.window.close();}
 });
-test('resource directory filters reviewed external links and handles no matches',async()=>{
+test('resource directory preserves records without outbound links and handles no matches',async()=>{
  const resources=JSON.parse(await readFile('public/resources.json','utf8'));
  const dom=new JSDOM(await readFile('public/resources.html','utf8'),{url:'https://nounarchive.test/resources.html',runScripts:'outside-only'});
  try{
@@ -44,8 +44,10 @@ test('resource directory filters reviewed external links and handles no matches'
  const d=dom.window.document;
  assert.equal(d.querySelectorAll('.resource-card').length,19);
  assert.doesNotMatch(d.body.textContent,/BBCNOUN|NOUN Update|Puredu|Our sources/);
- for(const tag of d.querySelectorAll('.resource-link'))assert.equal(tag.textContent,'Open resource↗');
- for(const link of d.querySelectorAll('.resource-card')){assert.match(link.href,/^https:\/\/(nounupdate\.com|bbcnoun\.com\.ng|puredu\.net)\//);assert.equal(link.getAttribute('rel'),'noopener noreferrer');}
+ assert.equal(d.querySelectorAll('.resource-card a, a.resource-card, .resource-card [href], .resource-card [target]').length,0);
+ assert.equal(resources.length,19);
+ assert.ok(resources.every(item=>item.url && item.source));
+ for(const link of d.querySelectorAll('a[href]'))assert.equal(new URL(link.href).origin,'https://nounarchive.test');
  const select=d.getElementById('resource-category');select.value='Admissions';select.dispatchEvent(new dom.window.Event('change'));assert.equal(d.querySelectorAll('.resource-card').length,4);
  const search=d.getElementById('resource-search');search.value='nonexistent resource';search.dispatchEvent(new dom.window.Event('input'));assert.equal(d.querySelectorAll('.resource-card').length,0);assert.match(d.getElementById('resource-cards').textContent,/No resources found/);
  }finally{dom.window.close();}
@@ -172,4 +174,34 @@ test('resource directory accepts quick-access search and journey category parame
  if(query.includes('Admissions')){assert.equal(d.getElementById('resource-category').value,'Admissions');assert.equal(d.querySelectorAll('.resource-card').length,4);}else assert.equal(d.getElementById('resource-search').value,'result');
  }finally{dom.window.close();}
  }
+});
+
+
+test('all HTML pages use only same-origin navigation and no automatic redirects',async()=>{
+ for(const file of ['index.html','resources.html','post.html','admin.html']){
+  const dom=new JSDOM(await readFile('public/'+file,'utf8'),{url:'https://nounarchive.test/'+file});
+  try{
+   const d=dom.window.document;
+   assert.equal(d.querySelectorAll('base, meta[http-equiv="refresh" i]').length,0,file);
+   for(const element of d.querySelectorAll('a[href],area[href],form[action],iframe[src]')){
+    const target=element.getAttribute('href')??element.getAttribute('action')??element.getAttribute('src');
+    const url=new URL(target,dom.window.location.href);
+    assert.equal(url.origin,'https://nounarchive.test',file+': '+target);
+   }
+  }finally{dom.window.close();}
+ }
+});
+
+test('resource URLs cannot create external navigation or executable markup',async()=>{
+ const dom=new JSDOM(await readFile('public/resources.html','utf8'),{url:'https://nounarchive.test/resources.html',runScripts:'outside-only'});
+ try{
+  const items=['https://outside.test/','//outside.test/','javascript:alert(1)'].map(url=>({title:'Resource',description:'<a href="https://outside.test">text</a>',category:'Admissions',source:'Private origin',url}));
+  dom.window.fetch=async()=>({ok:true,json:async()=>items});
+  dom.window.eval(await readFile('public/resources.js','utf8'));
+  await new Promise(r=>setTimeout(r,10));
+  const d=dom.window.document;
+  assert.equal(d.querySelectorAll('article.resource-card').length,3);
+  assert.equal(d.querySelectorAll('.resource-card a,.resource-card [href],.resource-card [onclick]').length,0);
+  assert.doesNotMatch(d.body.textContent,/Private origin/);
+ }finally{dom.window.close();}
 });
