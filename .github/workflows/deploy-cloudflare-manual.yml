@@ -1,0 +1,35 @@
+name: Trigger Cloudflare deployment
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  trigger:
+    name: Start Worker deployment on main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      GH_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Check deployment token
+        shell: bash
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Missing CLOUDFLARE_DEPLOY_GITHUB_TOKEN repository secret."
+            exit 1
+          fi
+
+      - name: Trigger existing Cloudflare workflow
+        shell: bash
+        run: |
+          gh workflow run deploy-cloudflare.yml \
+            --repo "$GH_REPO" \
+            --ref main \
+            -f target=worker
+
+          echo "Deployment requested. Check the Deploy to Cloudflare workflow for its result."
