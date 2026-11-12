@@ -24,7 +24,18 @@ api.use('*',async(c,next)=>{
  await next();
 });
 api.use('*',bodyLimit({maxSize:100*1024,onError:c=>c.json({error:'Request too large.'},413)}));
-api.get('/api/health',async c=>{await c.env.DB.prepare('SELECT 1').first();return c.json({ok:true,database:'d1'});});
+const requiredD1Tables=['articles','source_status','posts','admin_sessions','login_attempts','admin_credentials','admin_reset_tokens','resources','resource_status'];
+api.get('/api/health',async c=>{
+ try{
+  const {results=[]}=await c.env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+  const tables=new Set(results.map(row=>row.name));
+  if(requiredD1Tables.some(name=>!tables.has(name)))return c.json({ok:false,database:'d1',error:'Database schema is not ready.'},503);
+  await c.env.DB.prepare('SELECT 1').first();
+  return c.json({ok:true,database:'d1'});
+ }catch{
+  return c.json({ok:false,database:'d1',error:'Database is not ready.'},503);
+ }
+});
 api.get('/api/archive',async c=>{
  const [articles,posts,statuses]=await Promise.all([records(c.env,'SELECT data FROM articles ORDER BY published_at DESC'),records(c.env,"SELECT data FROM posts WHERE status='published' ORDER BY published_at DESC"),records(c.env,'SELECT source,data FROM source_status')]);
  // Snapshot is a fallback, not written implicitly into a live database.
@@ -56,7 +67,7 @@ api.post('/api/admin/password-reset',async c=>{
  statement(c.env,'DELETE FROM admin_sessions WHERE EXISTS (SELECT 1 FROM admin_credentials WHERE password_hash=?)',hash)
  ]);
  if(!results[0].meta.changes)return c.json({error:'Recovery token is invalid, expired, or already used. Ask the site owner for a fresh token.'},400);
- await statement(c.env,'DELETE FROM login_attempts WHERE ip_hash=?',await digest(c.req.header('CF-Connecting-IP')||'local')).run();
+ await statement(c.env,'DELETE FROM login_attempts WHERE ip_hash=?',await digest('reset:'+(c.req.header('CF-Connecting-IP')||'local'))).run();
  deleteCookie(c,'nounarchive_admin',{path:'/api/admin'});return c.json({ok:true});
 });
 api.post('/api/admin/login',async c=>{
