@@ -6,6 +6,12 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "kv_namespaces": [
+    {
+      "binding": "kv",
+      "id": "d54d022f45014955a5c21a5024ac5720"
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
