@@ -14,7 +14,7 @@ const categoryPaths = {
 };
 function categoryIcon(category){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${categoryPaths[category] || categoryPaths['Campus news']}</svg>`;}
 function internalHref(i){
- if(i.source!=='nounarchive')return null;
+ if(i.source!=='nounarchive')return `/story.html?id=${encodeURIComponent(String(i.id||''))}`;
  try{const url=new URL(i.url,location.origin);return url.origin===location.origin&&!url.pathname.startsWith('//')?url.pathname+url.search+url.hash:null;}catch{return null;}
 }
 function storyTitle(i){const href=internalHref(i);return href?`<a href="${escape(href)}">${escape(i.title)}</a>`:escape(i.title);}

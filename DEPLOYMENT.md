@@ -1,6 +1,6 @@
 # Nounarchive: GitHub → Cloudflare deployment checklist
 
-**Recommended:** one Cloudflare Worker serves the complete site and API, D1 stores articles and posts, and an hourly Cron Trigger imports updates. Pages is also supported, using a separate scheduler Worker. Choose **one** web target; do not enable two collectors against the same database.
+**Recommended:** one Cloudflare Worker serves the complete site and API, D1 stores articles, resource listings, and posts, and a daily Cron Trigger refreshes news and tools. Pages is also supported, using a separate scheduler Worker. Choose **one** web target; do not enable two collectors against the same database.
 
 No remote D1 instance or production deployment is created by this guide. All remote commands require your authorized Cloudflare account. Keep passwords and API tokens in secret settings, not chat or Git.
 
@@ -111,7 +111,7 @@ npx wrangler secret put ADMIN_PASSWORD_HASH
 # At the secret prompt, paste the generated hash, not your password.
 ```
 
-The resulting Worker includes the site, APIs and hourly collection. Wrangler reports the live URL. No separate scheduler is needed.
+The resulting Worker includes the site, APIs and daily collection. Wrangler reports the live URL. No separate scheduler is needed.
 
 ### Pages — alternative
 
@@ -124,7 +124,7 @@ npm run pages:deploy -- --branch arena/bf9d8ef8-nounarchive
 npm run cf:deploy:scheduler
 ```
 
-The Pages command compiles/stages an advanced-mode Functions Worker alongside static assets, using the configured D1 binding. Do not deploy `public/` alone or set the Pages build command to `npm start`: that would not provide this application's backend. Pages does not support Cron Triggers itself; `nounarchive-sync` provides hourly collection against the same D1 database.
+The Pages command compiles/stages an advanced-mode Functions Worker alongside static assets, using the configured D1 binding. Do not deploy `public/` alone or set the Pages build command to `npm start`: that would not provide this application's backend. Pages does not support Cron Triggers itself; `nounarchive-sync` provides daily collection against the same D1 database.
 
 The repository-root `wrangler.jsonc` is intentionally the **Workers** configuration. Use the supplied Pages CLI staging workflow rather than a naive dashboard Git import pointed at the repository root.
 
@@ -162,7 +162,7 @@ This private export may include drafts. It preserves existing D1 rows, excludes 
 - Save a draft: it must not appear in the public feed or direct public article API.
 - Publish it: it should appear in the feed and open as a full article.
 - Sign out: admin API access must return 401.
-- After the hourly Cron Trigger runs, inspect source health and last-success times.
+- After the daily Cron Trigger runs, inspect source health and last-success times.
 - Add your custom domain and verify HTTPS and login cookies.
 
 External source ingestion, especially NOUN Update's dynamic listing, still needs live-host verification. A passing deployment health check does not imply all three sources are reachable. Choose a Cloudflare plan/CPU allowance appropriate for feed parsing and password hashing, and monitor errors and D1 usage.
