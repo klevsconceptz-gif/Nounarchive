@@ -26,7 +26,13 @@ jobs:
       - name: Select or bootstrap the required Node.js runtime
         shell: bash
         working-directory: ${{ github.workspace }}
-        run: bash "$GITHUB_WORKSPACE/.github/scripts/select-node.sh"
+        run: |
+          selector="$GITHUB_WORKSPACE/.github/scripts/select-node.sh"
+          if [[ ! -r "$selector" ]]; then
+            echo "::error::Node runtime selector is missing from the fetched source archive: $selector"
+            exit 1
+          fi
+          source "$selector"
       - run: npm ci
         working-directory: ${{ github.workspace }}
       - run: npm run cf:db:local
