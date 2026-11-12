@@ -28,6 +28,7 @@ test('login screen omits setup instructions while preserving password login and 
  const dom=new JSDOM(await readFile('public/admin.html','utf8'));
  try{
  const login=dom.window.document.getElementById('login-panel');
+ assert.equal(dom.window.document.querySelector('meta[name="robots"]')?.content,'noindex,nofollow');
  assert.doesNotMatch(login.textContent,/First time\?|npm run|ADMIN_PASSWORD|No default password/);
  assert.equal(login.querySelector('input[type=password]').required,true);
  assert.ok(dom.window.document.getElementById('post-form'));

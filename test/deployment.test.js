@@ -2,16 +2,16 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {parse} from 'yaml';
-test('GitHub workflows parse and production deployment supports main and the active branch',async()=>{
+test('GitHub workflows parse and production deployment is restricted to main',async()=>{
  const ci=parse(await readFile('.github/workflows/ci.yml','utf8'));
  const deploy=parse(await readFile('.github/workflows/deploy-cloudflare.yml','utf8'));
  assert.ok(ci.on.pull_request!==undefined);
+ assert.deepEqual(ci.on.push.branches,['main']);
  assert.ok(deploy.on.workflow_dispatch);
  assert.deepEqual(deploy.on.push.branches,['main']);
- assert.ok(deploy.jobs.deploy.if.includes("refs/heads/main"));
+ assert.equal(deploy.jobs.deploy.if,"github.ref == 'refs/heads/main'");
  assert.equal(deploy.jobs.deploy.steps[0].with.ref,'${{ github.sha }}');
  assert.equal(deploy.jobs.deploy.environment,'production');
- assert.match(deploy.jobs.deploy.if,/arena\/bf9d8ef8-nounarchive/);
  assert.equal(deploy.concurrency['cancel-in-progress'],false);
  assert.equal(deploy.permissions.contents,'read');
  assert.ok(deploy.jobs.deploy.steps.some(step=>step.run==='npm test'));
@@ -25,6 +25,10 @@ test('GitHub workflows parse and production deployment supports main and the act
  const steps=deploy.jobs.deploy.steps.filter(step=>step.name?.includes('secret'));
  assert.equal(steps.length,2);
  for(const step of steps) assert.ok(step.run.includes('secret put ADMIN_PASSWORD_HASH'));
+});
+test('only application-specific GitHub Actions workflows are active',async()=>{
+ const {readdir}=await import('node:fs/promises');
+ assert.deepEqual((await readdir('.github/workflows')).sort(),['ci.yml','deploy-cloudflare-manual.yml','deploy-cloudflare.yml']);
 });
 test('Cloudflare targets share D1 binding and migration path',async()=>{
  const configs=await Promise.all(['wrangler.jsonc','wrangler.pages.jsonc','wrangler.scheduler.jsonc'].map(async file=>JSON.parse(await readFile(file,'utf8'))));

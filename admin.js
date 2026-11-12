@@ -42,7 +42,7 @@ export async function installAdmin(app, storage) {
  const hash=await makePasswordHash(req.body.newPassword);
  if(recovery.expires<=Date.now())return res.status(400).json({error:'Recovery token expired. Ask the site owner for a fresh token.'});
  if(!storage.applyAdminReset(hash,baseVersion,recovery.hash,recovery.expires))return res.status(400).json({error:'Recovery token is invalid, expired, or already used. Ask the site owner for a fresh token.'});
- sessions.clear();attempts.delete(req.socket.remoteAddress);
+ sessions.clear();attempts.delete(key);
  res.clearCookie('nounarchive_admin',{path:'/api/admin'});return res.json({ok:true});
  });
  app.post('/api/admin/login', async(req,res)=>{

@@ -4,6 +4,17 @@ import {readFile} from 'node:fs/promises';
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
 import {passwordKey,randomToken} from '../security.js';
 const snapshot=JSON.parse(await readFile('data/seed.json','utf8'));
+for(const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','dist/pages/index.js']])test(`${label} readiness requires every D1 migration`,async()=>{
+ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath,compatibilityDate:'2026-10-30',compatibilityFlags:['nodejs_compat'],d1Databases:['DB']}));
+ try{
+  const health=()=>mf.dispatchFetch('https://nounarchive.test/api/health');
+  let response=await health();assert.equal(response.status,503);assert.equal((await response.json()).ok,false);
+  for(const file of ['0001_initial.sql','0002_admin_recovery.sql'])for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(s=>s.trim()).filter(Boolean))await (await mf.getD1Database('DB')).prepare(sql).run();
+  response=await health();assert.equal(response.status,503);
+  for(const sql of (await readFile('cloudflare/migrations/0003_resources.sql','utf8')).split(';').map(s=>s.trim()).filter(Boolean))await (await mf.getD1Database('DB')).prepare(sql).run();
+  response=await health();assert.equal(response.status,200);assert.deepEqual(await response.json(),{ok:true,database:'d1'});
+ }finally{await mf.dispose();}
+});
 for (const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','dist/pages/index.js']]) test(`${label} runtime with D1: auth, drafts, publication, CSRF, logout and throttling`,async()=>{
  const salt=randomToken(),password='test-only-strong-password',hash=`pbkdf2-sha256$100000$${salt}$${await passwordKey(password,salt)}`;
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath,compatibilityDate:'2026-10-30',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{ADMIN_PASSWORD_HASH:hash}}));
@@ -49,11 +60,26 @@ for(const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','di
  assert.equal((await request('/session',null,cookie)).status,401);
  assert.equal((await request('/login',{password})).status,401);
  const signedIn=await request('/login',{password:newPassword});assert.equal(signedIn.status,200);const newCookie=signedIn.headers.get('set-cookie').split(';')[0];
- assert.equal((await request('/password-reset',{token,newPassword:'a different new password'})).status,400);
  assert.equal((await request('/session',null,newCookie)).status,200);
- assert.equal((await request('/password-reset',{token,newPassword})).status,429);
+ assert.equal((await request('/password-reset',{token,newPassword:'a different new password'})).status,400);
  const row=await db.prepare('SELECT password_hash FROM admin_credentials WHERE id=1').first();assert.notEqual(row.password_hash,hash);assert.ok(await (await import('../security.js')).verifyPassword(newPassword,row.password_hash));
  const used=await db.prepare('SELECT token_hash FROM admin_reset_tokens').first();assert.equal(used.token_hash,await digest(token));assert.notEqual(used.token_hash,token);
+ }finally{await mf.dispose();}
+});
+
+for(const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','dist/pages/index.js']])test(`${label} successful recovery clears the recovery rate-limit bucket`,async()=>{
+ const {digest}=await import('../security.js');const token=randomToken(),newPassword='fresh-recovery-password';
+ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath,compatibilityDate:'2026-10-30',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{ADMIN_RESET_TOKEN_HASH:`${Date.now()+900000}$${await digest(token)}`}}));
+ try{
+  const db=await mf.getD1Database('DB');
+  for(const file of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql'])for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(s=>s.trim()).filter(Boolean))await db.prepare(sql).run();
+  const request=body=>mf.dispatchFetch('https://nounarchive.test/api/admin/password-reset',{method:'POST',headers:{'Content-Type':'application/json','CF-Connecting-IP':'192.0.2.4','X-Nounarchive-Admin':'1'},body:JSON.stringify(body)});
+  for(let i=0;i<2;i++)assert.equal((await request({token:randomToken(),newPassword})).status,400);
+  assert.equal((await request({token,newPassword})).status,200);
+  const resetIpHash=await digest('reset:192.0.2.4');
+  assert.equal(await db.prepare('SELECT ip_hash FROM login_attempts WHERE ip_hash=?').bind(resetIpHash).first(),null);
+  for(let i=0;i<5;i++)assert.equal((await request({token,newPassword})).status,400);
+  assert.equal((await request({token,newPassword})).status,429);
  }finally{await mf.dispose();}
 });
 

@@ -30,9 +30,8 @@ test('Node owner recovery is single-use, persists, revokes sessions and rate lim
  assert.equal((await request('/session',null,{Cookie:cookie})).status,401);
  assert.equal((await request('/login',{password:'original-test-password'})).status,401);
  const newLogin=await request('/login',{password:newPassword});assert.equal(newLogin.status,200);const newCookie=newLogin.headers.get('set-cookie').split(';')[0];
- assert.equal((await request('/password-reset',{token,newPassword:'another-test-password'})).status,400);
  assert.equal((await request('/session',null,{Cookie:newCookie})).status,200);
- assert.equal((await request('/password-reset',{token,newPassword})).status,429);
+ assert.equal((await request('/password-reset',{token,newPassword:'another-test-password'})).status,400);
  const reloaded=await start();assert.equal((await fetch(reloaded+'/login',{method:'POST',headers:{'Content-Type':'application/json','X-Nounarchive-Admin':'1'},body:JSON.stringify({password:newPassword})})).status,200);
  process.env.ADMIN_PASSWORD='operator-rotated-password';const rotated=await start();
  assert.equal((await fetch(rotated+'/login',{method:'POST',headers:{'Content-Type':'application/json','X-Nounarchive-Admin':'1'},body:JSON.stringify({password:'operator-rotated-password'})})).status,200);
@@ -40,5 +39,24 @@ test('Node owner recovery is single-use, persists, revokes sessions and rate lim
  }finally{
  for(const server of servers)await new Promise(r=>server.close(r));store.close();
  for(const [key,value] of [['ADMIN_PASSWORD',previous.password],['ADMIN_RESET_TOKEN_HASH',previous.reset]])if(value===undefined)delete process.env[key];else process.env[key]=value;
+ }
+});
+
+test('Node successful recovery clears the recovery rate-limit bucket',async()=>{
+ const previous=process.env.ADMIN_RESET_TOKEN_HASH,token=randomToken(),newPassword='fresh-recovery-password';
+ process.env.ADMIN_RESET_TOKEN_HASH=`${Date.now()+900000}$${await digest(token)}`;
+ const store=openStorage(':memory:');store.initialize();const serverList=[];
+ try{
+  const app=express();app.use(express.json());await installAdmin(app,store);
+  const server=app.listen(0,'127.0.0.1');serverList.push(server);await new Promise(resolve=>server.once('listening',resolve));
+  const base=`http://127.0.0.1:${server.address().port}/api/admin/password-reset`;
+  const request=body=>fetch(base,{method:'POST',headers:{'Content-Type':'application/json','X-Nounarchive-Admin':'1'},body:JSON.stringify(body)});
+  for(let i=0;i<2;i++)assert.equal((await request({token:randomToken(),newPassword})).status,400);
+  assert.equal((await request({token,newPassword})).status,200);
+  for(let i=0;i<5;i++)assert.equal((await request({token,newPassword})).status,400);
+  assert.equal((await request({token,newPassword})).status,429);
+ }finally{
+  for(const server of serverList)await new Promise(resolve=>server.close(resolve));store.close();
+  if(previous===undefined)delete process.env.ADMIN_RESET_TOKEN_HASH;else process.env.ADMIN_RESET_TOKEN_HASH=previous;
  }
 });
