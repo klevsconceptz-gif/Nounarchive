@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eEuo pipefail
+trap 'status=$?; printf "::error title=Node runtime bootstrap::Command failed (exit %s): %s\\n" "$status" "$BASH_COMMAND"; exit "$status"' ERR
 
 required="$(tr -d '\r\n' < .nvmrc)"
 if [[ ! "$required" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -44,16 +45,23 @@ fi
 
 if [[ -z "$selected" ]]; then
   case "$required" in
-    22.22.3) expected_integrity='sha512-L57AfRf8K3F0na3lGYXYrBGO/pafgDrswNE8hjuMCyqYcxXrm0UepJBaCLP8PyjfnDoJGyIIf1oU0UTASOEpZg==' ;;
+    22.22.3) expected_sha512='2f9ec07d17fc2b71749dade51985d8ac118efe969f803aecc0d13c863b8c0b2a987315eb9b451ea4905a08b3fc3f28df9c3a091b22087f5a14d144c048e12966' ;;
     *) echo "::error::No verified npm runtime archive is configured for Node.js $required."; exit 1 ;;
   esac
   runtime_dir="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/nounarchive-node-runtime"
   archive="$runtime_dir/node-linux-x64-$required.tgz"
   mkdir -p "$runtime_dir"
+  for utility in curl sha512sum tar; do
+    if ! command -v "$utility" >/dev/null 2>&1; then
+      echo "::error::Required runtime bootstrap utility is unavailable: $utility."
+      exit 1
+    fi
+  done
   echo "Node.js $required is not cached; downloading its integrity-pinned Linux x64 runtime from npm."
   curl --fail --silent --show-error --location "https://registry.npmjs.org/node-linux-x64/-/node-linux-x64-$required.tgz" --output "$archive"
-  actual_integrity="sha512-$(openssl dgst -sha512 -binary "$archive" | base64 -w0)"
-  if [[ "$actual_integrity" != "$expected_integrity" ]]; then
+  actual_sha512="$(sha512sum "$archive")"
+  actual_sha512="${actual_sha512%% *}"
+  if [[ "$actual_sha512" != "$expected_sha512" ]]; then
     echo "::error::The downloaded Node.js archive failed its SHA-512 integrity check."
     exit 1
   fi
