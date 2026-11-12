@@ -22,6 +22,8 @@ test('GitHub workflows parse and production deployment is restricted to main',as
  assert.equal(deploy.permissions.contents,'read');
  assert.ok(deploy.jobs.deploy.steps.some(step=>step.run==='npm test'));
  const validation=deploy.jobs.deploy.steps.find(step=>step.name==='Validate deployment settings');
+ assert.match(validation.run,/cf:configure -- --check/);
+ assert.doesNotMatch(validation.run,/Missing production environment setting: D1_DATABASE_ID/);
  // Extract and execute the exact hash-validation expression embedded in the workflow.
  const hashLine=validation.run.split('\n').find(line=>line.includes('pbkdf2-sha256'));
  const literal=hashLine.split('if (!')[1].split('.test(process.env.ADMIN_PASSWORD_HASH)')[0];

@@ -9,10 +9,26 @@ for(const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','di
  try{
   const health=()=>mf.dispatchFetch('https://nounarchive.test/api/health');
   let response=await health();assert.equal(response.status,503);assert.equal((await response.json()).ok,false);
+  const archiveResponse=await mf.dispatchFetch('https://nounarchive.test/api/archive');
+  assert.equal(archiveResponse.status,200);assert.deepEqual((await archiveResponse.json()).items,snapshot.items);
+  const db=await mf.getD1Database('DB');
+  await db.prepare('CREATE TABLE articles (id TEXT PRIMARY KEY, source TEXT NOT NULL, published_at TEXT, data TEXT NOT NULL)').run();
+  const saved={id:'partial-schema-story',source:'nounupdate',title:'Saved archive item',url:'/',excerpt:'This saved item survives unavailable D1 tables.',publishedAt:'2026-11-01T00:00:00.000Z',category:'Campus news'};
+  await db.prepare('INSERT INTO articles(id,source,published_at,data) VALUES(?,?,?,?)').bind(saved.id,saved.source,saved.publishedAt,JSON.stringify(saved)).run();
+  const partialArchive=await (await mf.dispatchFetch('https://nounarchive.test/api/archive')).json();
+  assert.equal(partialArchive.items.length,snapshot.items.length+1);assert.ok(partialArchive.items.some(item=>item.id===saved.id));
   for(const file of ['0001_initial.sql','0002_admin_recovery.sql'])for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(s=>s.trim()).filter(Boolean))await (await mf.getD1Database('DB')).prepare(sql).run();
   response=await health();assert.equal(response.status,503);
   for(const sql of (await readFile('cloudflare/migrations/0003_resources.sql','utf8')).split(';').map(s=>s.trim()).filter(Boolean))await (await mf.getD1Database('DB')).prepare(sql).run();
   response=await health();assert.equal(response.status,200);assert.deepEqual(await response.json(),{ok:true,database:'d1'});
+ }finally{await mf.dispose();}
+});
+for(const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','dist/pages/index.js']])test(`${label} public archive serves the bundled snapshot without D1`,async()=>{
+ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath,compatibilityDate:'2026-10-30',compatibilityFlags:['nodejs_compat']}));
+ try{
+  const response=await mf.dispatchFetch('https://nounarchive.test/api/archive');
+  assert.equal(response.status,200);assert.deepEqual((await response.json()).items,snapshot.items);
+  assert.equal((await mf.dispatchFetch('https://nounarchive.test/api/health')).status,503);
  }finally{await mf.dispose();}
 });
 for (const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','dist/pages/index.js']]) test(`${label} runtime with D1: auth, drafts, publication, CSRF, logout and throttling`,async()=>{

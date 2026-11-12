@@ -77,11 +77,7 @@ Add these **environment secrets**:
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID from the Cloudflare dashboard |
 | `CLOUDFLARE_ADMIN_PASSWORD_HASH` | Complete generated hash, without surrounding quotes |
 
-Add this **environment variable**:
-
-| Name | Value |
-|---|---|
-| `D1_DATABASE_ID` | Actual D1 UUID from section 3 |
+Optionally add the **environment variable** `D1_DATABASE_ID` to override the IDs in the checked-in Wrangler configs. If omitted, the deployment workflow validates and uses the configured UUIDs. Dashboard-connected Workers Builds still require their own `D1_DATABASE_ID` build variable.
 
 Scope the Cloudflare token to the account and the capabilities required: **D1 Edit** (migration/export), **Workers Scripts Edit** (Worker, scheduler and secrets), and **Cloudflare Pages Edit** if deploying Pages. Some Wrangler discovery operations may also require account/membership read access. Do not use a global API key. Add domain/zone permissions only if you automate custom-domain changes.
 
@@ -143,6 +139,7 @@ This private export may include drafts. It preserves existing D1 rows, excludes 
 ## 7. Verify production
 
 - `/api/health` returns `{"ok":true,"database":"d1"}` only after all required D1 tables exist; it returns HTTP 503 if a migration is missing.
+- `/api/archive` continues to serve the bundled headline snapshot, plus any D1 records it can still read, if the database binding or archive tables are unavailable.
 - `/` loads the feed and can search/filter updates.
 - `/admin.html` signs in with your chosen password.
 - Save a draft: it must not appear in the public feed or direct public article API.
@@ -161,7 +158,7 @@ For dashboard-connected Workers Builds, add a **build variable** named `D1_DATAB
 
 ## Consolidated production deployment
 
-The deployment workflow runs automatically after changes merge into `main`, deploying the complete Worker. Manual runs also deploy from `main` and can select Worker or Pages. The GitHub `production` environment must allow `main` and contain the required Cloudflare secrets and `D1_DATABASE_ID` variable. Pages remains a manual alternative; deploy only one collector against a production D1 database.
+The deployment workflow runs automatically after changes merge into `main`, deploying the complete Worker. Manual runs also deploy from `main` and can select Worker or Pages. The GitHub `production` environment must allow `main` and contain the required Cloudflare secrets. The `D1_DATABASE_ID` environment variable is optional when the checked-in Wrangler configs already contain the correct UUID. Pages remains a manual alternative; deploy only one collector against a production D1 database.
 
 ## GitHub Actions ownership policy
 

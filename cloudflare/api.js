@@ -18,9 +18,10 @@ async function activeCredential(env){
 }
 const records=async(env,sql,...values)=>(await statement(env,sql,...values).all()).results;
 const postSummary=p=>({id:p.id,title:p.title,excerpt:p.excerpt,category:p.category,publishedAt:p.publishedAt,readingMinutes:Math.max(1,Math.ceil(p.content.split(/\s+/).length/200)),source:'nounarchive',url:'/post.html?id='+p.id});
+const snapshotArchive=()=>({snapshotAt:seed.snapshotAt,items:seed.items,status:seed.status,sources:[...sources,publicSource],syncing:false,refreshMinutes:1440});
 api.use('*',async(c,next)=>{
  c.header('Cache-Control','no-store');c.header('X-Content-Type-Options','nosniff');c.header('Referrer-Policy','strict-origin-when-cross-origin');
- if(!c.env.DB)return c.json({error:'D1 database binding is not configured.'},503);
+ if(!c.env.DB&&c.req.path!=='/api/archive')return c.json({error:'D1 database binding is not configured.'},503);
  await next();
 });
 api.use('*',bodyLimit({maxSize:100*1024,onError:c=>c.json({error:'Request too large.'},413)}));
@@ -37,10 +38,20 @@ api.get('/api/health',async c=>{
  }
 });
 api.get('/api/archive',async c=>{
- const [articles,posts,statuses]=await Promise.all([records(c.env,'SELECT data FROM articles ORDER BY published_at DESC'),records(c.env,"SELECT data FROM posts WHERE status='published' ORDER BY published_at DESC"),records(c.env,'SELECT source,data FROM source_status')]);
- // Snapshot is a fallback, not written implicitly into a live database.
- const merged=new Map(seed.items.map(i=>[i.id,i]));articles.forEach(r=>{const i=JSON.parse(r.data);merged.set(i.id,i);});
- return c.json({snapshotAt:seed.snapshotAt,items:[...merged.values(),...posts.map(r=>postSummary(JSON.parse(r.data)))],status:{...seed.status,...Object.fromEntries(statuses.map(r=>[r.source,JSON.parse(r.data)]))},sources:[...sources,publicSource],syncing:false,refreshMinutes:1440});
+ const fallback=()=>c.json(snapshotArchive());
+ if(!c.env.DB)return fallback();
+ try{
+  const reads=await Promise.allSettled([records(c.env,'SELECT data FROM articles ORDER BY published_at DESC'),records(c.env,"SELECT data FROM posts WHERE status='published' ORDER BY published_at DESC"),records(c.env,'SELECT source,data FROM source_status')]);
+  const names=['articles','published posts','source status'];
+  const failures=reads.flatMap((result,index)=>result.status==='rejected'?[`${names[index]}: ${result.reason?.message||String(result.reason)}`]:[]);
+  if(failures.length)console.warn('D1 archive reads incomplete; preserving the bundled snapshot and any available records:',failures.join('; '));
+  const [articleRead,postRead,statusRead]=reads.map(result=>result.status==='fulfilled'?result.value:[]);
+  const merged=new Map(seed.items.map(i=>[i.id,i]));articleRead.forEach(r=>{const i=JSON.parse(r.data);merged.set(i.id,i);});
+  return c.json({snapshotAt:seed.snapshotAt,items:[...merged.values(),...postRead.map(r=>postSummary(JSON.parse(r.data)))],status:{...seed.status,...Object.fromEntries(statusRead.map(r=>[r.source,JSON.parse(r.data)]))},sources:[...sources,publicSource],syncing:false,refreshMinutes:1440});
+ }catch(error){
+  console.warn('D1 archive records could not be parsed; serving the bundled news snapshot:',error?.message||String(error));
+  return fallback();
+ }
 });
 api.get('/api/resources',async c=>{
  const [stored,statuses]=await Promise.all([records(c.env,'SELECT data FROM resources ORDER BY updated_at DESC'),records(c.env,'SELECT source,data FROM resource_status')]);
