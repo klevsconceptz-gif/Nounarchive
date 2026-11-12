@@ -10,11 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22.22.3'
-          cache: npm
+      - name: Fetch source archive at the event commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE"
+          archive="$RUNNER_TEMP/nounarchive-source.tar.gz"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/tarball/$GITHUB_SHA" \
+            --output "$archive"
+      - name: Select a compatible runner-cached Node.js
+        shell: bash
+        run: bash .github/scripts/select-node.sh
       - run: npm ci
       - run: npm run cf:db:local
       - run: npm test

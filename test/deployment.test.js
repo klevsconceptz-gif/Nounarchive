@@ -10,7 +10,9 @@ test('GitHub workflows parse and production deployment is restricted to main',as
  assert.ok(deploy.on.workflow_dispatch);
  assert.deepEqual(deploy.on.push.branches,['main']);
  assert.equal(deploy.jobs.deploy.if,"github.ref == 'refs/heads/main'");
- assert.equal(deploy.jobs.deploy.steps[0].with.ref,'${{ github.sha }}');
+ assert.equal(deploy.jobs.deploy.steps[0].name,'Fetch source archive at the event commit');
+ assert.match(deploy.jobs.deploy.steps[0].run,/GITHUB_SHA/);
+ assert.equal(deploy.jobs.deploy.steps[1].name,'Select a compatible runner-cached Node.js');
  assert.equal(deploy.jobs.deploy.environment,'production');
  assert.equal(deploy.concurrency['cancel-in-progress'],false);
  assert.equal(deploy.permissions.contents,'read');
@@ -25,6 +27,20 @@ test('GitHub workflows parse and production deployment is restricted to main',as
  const steps=deploy.jobs.deploy.steps.filter(step=>step.name?.includes('secret'));
  assert.equal(steps.length,2);
  for(const step of steps) assert.ok(step.run.includes('secret put ADMIN_PASSWORD_HASH'));
+});
+test('workflow actions are restricted to owner-controlled repositories and full commit SHAs',async()=>{
+ const {readdir}=await import('node:fs/promises');
+ for(const name of await readdir('.github/workflows')){
+  const workflow=parse(await readFile('.github/workflows/'+name,'utf8'));
+  const references=Object.values(workflow.jobs||{}).flatMap(job=>[job.uses,...(job.steps||[]).map(step=>step.uses)].filter(Boolean));
+  for(const ref of references){
+   if(ref.startsWith('./'))continue;
+   assert.match(ref,/^klevsconceptz-gif\/[\w.-]+(?:\/[\w./-]+)?@[a-f0-9]{40}$/,'Action must use an owner-controlled repository and a full commit SHA: '+ref);
+  }
+ }
+ const selector=await readFile('.github/scripts/select-node.sh','utf8');
+ assert.match(selector,/RUNNER_TOOL_CACHE/);assert.match(selector,/GITHUB_PATH/);
+ for(const file of ['.github/workflows/ci.yml','.github/workflows/deploy-cloudflare.yml'])assert.match(await readFile(file,'utf8'),/api\.github\.com\/repos\/\$GITHUB_REPOSITORY\/tarball\/\$GITHUB_SHA/);
 });
 test('only application-specific GitHub Actions workflows are active',async()=>{
  const {readdir}=await import('node:fs/promises');
