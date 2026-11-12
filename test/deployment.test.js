@@ -13,6 +13,8 @@ test('GitHub workflows parse and production deployment is restricted to main',as
  assert.equal(deploy.jobs.deploy.if,"github.ref == 'refs/heads/main'");
  assert.equal(deploy.jobs.deploy.steps[0].name,'Fetch source archive at the event commit');
  assert.match(deploy.jobs.deploy.steps[0].run,/GITHUB_SHA/);
+ assert.match(ci.jobs.test.steps[0].run,/tar -xzf/);
+ assert.match(deploy.jobs.deploy.steps[0].run,/tar -xzf/);
  assert.equal(deploy.jobs.deploy.steps[1].name,'Select or bootstrap the required Node.js runtime');
  for(const step of deploy.jobs.deploy.steps.slice(1))if(step.run)assert.equal(step['working-directory'],'${{ github.workspace }}');
  assert.equal(deploy.jobs.deploy.environment,'production');
