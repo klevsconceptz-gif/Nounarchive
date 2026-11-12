@@ -3,152 +3,549 @@
     "title": "Course materials",
     "category": "Study & examinations",
     "url": "https://nounupdate.com/courses/",
-    "description": "Browse the provider\u2019s directory of courseware and learning materials.",
+    "description": "Build a personal course shelf, save reading notes, and track revision progress.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "course-materials",
+    "localTool": "library"
   },
   {
     "title": "Past questions",
     "category": "Study & examinations",
     "url": "https://nounupdate.com/past-questions",
-    "description": "Find previous examination questions to support your revision.",
+    "description": "Create a private practice set from your course materials and review answers locally.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "past-questions",
+    "localTool": "practice"
   },
   {
     "title": "Academic calendar",
     "category": "Academics & results",
     "url": "https://nounupdate.com/academic-calendar.php",
-    "description": "Review registration, assessment and university event information.",
+    "description": "Add academic dates, assessment reminders, and semester events to your personal calendar.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "academic-calendar",
+    "localTool": "calendar"
   },
   {
     "title": "Result checker",
     "category": "Academics & results",
     "url": "https://nounupdate.com/result",
-    "description": "Access the provider\u2019s result-checking and interpretation tools.",
+    "description": "Enter published course grades to calculate and organise your own result summary.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "result-checker",
+    "localTool": "grades"
   },
   {
     "title": "Admission eligibility",
     "category": "Admissions",
     "url": "https://nounupdate.com/smart-eligibility-finder",
-    "description": "Explore eligibility information for prospective students.",
+    "description": "Use a local application checklist to record your route, documents, and questions.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "admission-eligibility",
+    "localTool": "admissions"
   },
   {
     "title": "Study centres",
     "category": "Admissions",
     "url": "https://nounupdate.com/study-centres/",
-    "description": "Find study-centre information in the provider\u2019s directory.",
+    "description": "Keep a personal shortlist and contact notes for study-centre information you collect.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "study-centres",
+    "localTool": "directory"
   },
   {
     "title": "TMA archive",
     "category": "Study & examinations",
     "url": "https://nounupdate.com/tma-archive",
-    "description": "Explore archived tutor-marked assessment practice resources.",
+    "description": "Organise your own TMA questions and build a reusable practice set.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "tma-archive",
+    "localTool": "practice"
   },
   {
     "title": "e-Exam practice",
     "category": "Study & examinations",
     "url": "https://nounupdate.com/mock",
-    "description": "Visit the provider\u2019s electronic examination practice tool.",
+    "description": "Create timed revision sets from questions you provide and review your answers.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "e-exam-practice",
+    "localTool": "practice"
   },
   {
     "title": "CGPA calculator",
     "category": "Academics & results",
     "url": "https://nounupdate.com/cgpa-calculator",
-    "description": "Use a calculation tool to review academic performance.",
+    "description": "Calculate a weighted grade-point average from course units and grades.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "cgpa-calculator",
+    "localTool": "grades"
   },
   {
     "title": "Fee checker",
     "category": "Academics & results",
     "url": "https://nounupdate.com/fees/",
-    "description": "Explore semester cost estimates.",
+    "description": "Build a personal semester-cost estimate using the amounts you enter.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "fee-checker",
+    "localTool": "budget"
   },
   {
     "title": "Personalised timetable",
     "category": "Study & examinations",
     "url": "https://nounupdate.com/personalized-timetable",
-    "description": "Explore tools for organising course and examination schedules.",
+    "description": "Create a weekly timetable, check time clashes, and keep it on this device.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "personalised-timetable",
+    "localTool": "timetable"
   },
   {
     "title": "Admission requirements",
     "category": "Admissions",
     "url": "https://nounupdate.com/admission-requirements.php",
-    "description": "Read the provider\u2019s information about admission requirements.",
+    "description": "Create a checklist for programme requirements and the documents you need to verify.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "admission-requirements",
+    "localTool": "admissions"
   },
   {
     "title": "Programme directory",
     "category": "Admissions",
     "url": "https://nounupdate.com/programmes/",
-    "description": "Explore programmes listed by the provider.",
+    "description": "Search and save programme notes in a private local shortlist.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "programme-directory",
+    "localTool": "directory"
   },
   {
     "title": "Student resource centre",
     "category": "Student support",
     "url": "https://nounupdate.com/noun-student-resource-centre",
-    "description": "Visit a directory of academic and student-support resources.",
+    "description": "Open your local study workspace for notes, plans, and saved resources.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "student-resource-centre",
+    "localTool": "dashboard"
   },
   {
     "title": "Student guides",
     "category": "Student support",
     "url": "https://nounupdate.com/guides/",
-    "description": "Read practical guidance for navigating your student journey.",
+    "description": "Keep a searchable personal notebook for study and student-life guidance.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "student-guides",
+    "localTool": "notes"
   },
   {
     "title": "Scholarship hub",
     "category": "Student support",
     "url": "https://nounupdate.com/scholarships.php",
-    "description": "Browse scholarship opportunities and application information.",
+    "description": "Track opportunities, deadlines, application steps, and follow-up notes.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "scholarship-hub",
+    "localTool": "opportunities"
   },
   {
     "title": "News & announcements",
     "category": "News & announcements",
     "url": "https://nounupdate.com/news/",
-    "description": "Open the newsroom for the latest available announcements.",
+    "description": "Search the local Nounarchive news and update index.",
     "source": "NOUN Update",
-    "reviewedAt": "2026-11-03"
+    "id": "news-announcements",
+    "localTool": "news"
   },
   {
     "title": "University news archive",
     "category": "News & announcements",
     "url": "https://bbcnoun.com.ng/",
-    "description": "Browse NOUN examination notices, academic updates and previous reports.",
+    "description": "Browse locally indexed university headlines and summaries.",
     "source": "BBCNOUN",
-    "reviewedAt": "2026-11-03"
+    "id": "university-news-archive",
+    "localTool": "news"
   },
   {
     "title": "Campus reporting",
     "category": "News & announcements",
     "url": "https://puredu.net/",
-    "description": "Read reporting on study centres, programmes and the university community.",
+    "description": "Browse locally indexed campus updates and reporting summaries.",
     "source": "Puredu",
-    "reviewedAt": "2026-11-03"
+    "id": "campus-reporting",
+    "localTool": "news"
+  },
+  {
+    "title": "AI Result Analytics",
+    "category": "Academics & results",
+    "url": "https://nounupdate.com/ai-result-analytics.php",
+    "source": "NOUN Update",
+    "id": "ai-result-analytics",
+    "localTool": "grades",
+    "description": "Explore grade totals and progress from grades you enter locally."
+  },
+  {
+    "title": "Auto Result Analytics",
+    "category": "Academics & results",
+    "url": "https://nounupdate.com/ai-result-analytics-auto.php",
+    "source": "NOUN Update",
+    "id": "auto-result-analytics",
+    "localTool": "grades",
+    "description": "Organise manually entered results and calculate weighted averages."
+  },
+  {
+    "title": "Analytics Dashboard",
+    "category": "Academics & results",
+    "url": "https://nounupdate.com/ai-result-analytics-dashboard.php",
+    "source": "NOUN Update",
+    "id": "analytics-dashboard",
+    "localTool": "grades",
+    "description": "View your locally calculated course totals and academic progress."
+  },
+  {
+    "title": "Graduation / Convocation Checker",
+    "category": "Academics & results",
+    "url": "https://nounupdate.com/graduation",
+    "source": "NOUN Update",
+    "id": "graduation-checker",
+    "localTool": "grades",
+    "description": "Record completed units and graduation questions in your personal progress workspace."
+  },
+  {
+    "title": "Graduation Predictor",
+    "category": "Academics & results",
+    "url": "https://nounupdate.com/graduation-predictor.php",
+    "source": "NOUN Update",
+    "id": "graduation-predictor",
+    "localTool": "grades",
+    "description": "Estimate remaining units using your own study-plan inputs."
+  },
+  {
+    "title": "Study Planner",
+    "category": "Study & examinations",
+    "url": "https://nounupdate.com/study-planner",
+    "source": "NOUN Update",
+    "id": "study-planner",
+    "localTool": "planner",
+    "description": "Break study goals into dated tasks and track completion."
+  },
+  {
+    "title": "TMA Service",
+    "category": "Study & examinations",
+    "url": "https://nounupdate.com/tma-service",
+    "source": "NOUN Update",
+    "id": "tma-service",
+    "localTool": "practice",
+    "description": "Plan TMA tasks and practise with questions you add yourself."
+  },
+  {
+    "title": "POP Exam Practice",
+    "category": "Study & examinations",
+    "url": "https://nounupdate.com/exam-practice.html",
+    "source": "NOUN Update",
+    "id": "pop-exam-practice",
+    "localTool": "practice",
+    "description": "Build a self-test from your own POP revision questions."
+  },
+  {
+    "title": "Smart Course Summary",
+    "category": "Study & examinations",
+    "url": "https://nounupdate.com/course/summary.php",
+    "source": "NOUN Update",
+    "id": "smart-course-summary",
+    "localTool": "notes",
+    "description": "Write and save course summaries and revision notes locally."
+  },
+  {
+    "title": "Exam Summary",
+    "category": "Study & examinations",
+    "url": "https://nounupdate.com/exam-summary",
+    "source": "NOUN Update",
+    "id": "exam-summary",
+    "localTool": "notes",
+    "description": "Prepare a concise exam-revision summary and keep it with your study notes."
+  },
+  {
+    "title": "Eligibility Checker",
+    "category": "Admissions",
+    "url": "https://nounupdate.com/eligibility_checker",
+    "source": "NOUN Update",
+    "id": "eligibility-checker",
+    "localTool": "admissions",
+    "description": "Record the entry criteria you need to verify and track your application checklist."
+  },
+  {
+    "title": "NOUN Programmes",
+    "category": "Admissions",
+    "url": "https://nounupdate.com/programmes",
+    "source": "NOUN Update",
+    "id": "noun-programmes",
+    "localTool": "directory",
+    "description": "Create a local shortlist of programmes and your own research notes."
+  },
+  {
+    "title": "AI Course Tutor",
+    "category": "Study & examinations",
+    "url": "https://nounupdate.com/ai-course-tutor.php",
+    "source": "NOUN Update",
+    "id": "ai-course-tutor",
+    "localTool": "notes",
+    "description": "Create a local study note and question set for any course topic."
+  },
+  {
+    "title": "AI Exam Coach",
+    "category": "Study & examinations",
+    "url": "https://nounupdate.com/ai-exam-coach.php",
+    "source": "NOUN Update",
+    "id": "ai-exam-coach",
+    "localTool": "practice",
+    "description": "Build a revision checklist and self-test using questions you provide."
+  },
+  {
+    "title": "Project Topic Generator",
+    "category": "Projects & career",
+    "url": "https://nounupdate.com/project-topic-generator",
+    "source": "NOUN Update",
+    "id": "project-topic-generator",
+    "localTool": "project",
+    "description": "Generate editable project-title ideas from a subject, group, and location."
+  },
+  {
+    "title": "Topic Generator",
+    "category": "Projects & career",
+    "url": "https://nounupdate.com/topic-generator",
+    "source": "NOUN Update",
+    "id": "topic-generator",
+    "localTool": "project",
+    "description": "Generate and refine project-topic frameworks from your own inputs."
+  },
+  {
+    "title": "Generate Project Slip",
+    "category": "Projects & career",
+    "url": "https://nounupdate.com/generate-project-slip",
+    "source": "NOUN Update",
+    "id": "generate-project-slip",
+    "localTool": "project",
+    "description": "Draft a local project-planning brief with topic, objectives, and milestones."
+  },
+  {
+    "title": "Generate Seminar Slip",
+    "category": "Projects & career",
+    "url": "https://nounupdate.com/generate-seminar-slip",
+    "source": "NOUN Update",
+    "id": "generate-seminar-slip",
+    "localTool": "project",
+    "description": "Draft a seminar-planning brief and save the outline in this browser."
+  },
+  {
+    "title": "Project & Seminar Support",
+    "category": "Projects & career",
+    "url": "https://nounupdate.com/hire-project-seminar.php",
+    "source": "NOUN Update",
+    "id": "project-seminar-support",
+    "localTool": "project",
+    "description": "Organise project or seminar milestones, questions, and source notes."
+  },
+  {
+    "title": "Projects Library",
+    "category": "Projects & career",
+    "url": "https://nounupdate.com/projects",
+    "source": "NOUN Update",
+    "id": "projects-library",
+    "localTool": "library",
+    "description": "Save project ideas and research notes in a private local library."
+  },
+  {
+    "title": "Business Plan Builder",
+    "category": "Projects & career",
+    "url": "https://nounupdate.com/business-plan.php",
+    "source": "NOUN Update",
+    "id": "business-plan-builder",
+    "localTool": "project",
+    "description": "Build a simple business-plan outline from your own project details."
+  },
+  {
+    "title": "Text Similarity Checker",
+    "category": "Reference & utilities",
+    "url": "https://nounupdate.com/turnitin",
+    "source": "NOUN Update",
+    "id": "text-similarity-checker",
+    "localTool": "similarity",
+    "description": "Compare two text passages locally for approximate word overlap."
+  },
+  {
+    "title": "Student Dashboard",
+    "category": "Student support",
+    "url": "https://nounupdate.com/dashboard.php",
+    "source": "NOUN Update",
+    "id": "student-dashboard",
+    "localTool": "dashboard",
+    "description": "Open a private local overview of your study tools and saved plans."
+  },
+  {
+    "title": "Study Hub",
+    "category": "Student support",
+    "url": "https://nounupdate.com/study-hub",
+    "source": "NOUN Update",
+    "id": "study-hub",
+    "localTool": "dashboard",
+    "description": "Collect notes, plans, and study tasks in one local workspace."
+  },
+  {
+    "title": "Student Success Hub",
+    "category": "Student support",
+    "url": "https://nounupdate.com/student-success-hub",
+    "source": "NOUN Update",
+    "id": "student-success-hub",
+    "localTool": "planner",
+    "description": "Set practical semester goals and track next steps."
+  },
+  {
+    "title": "Academic Advisor Notes",
+    "category": "Student support",
+    "url": "https://nounupdate.com/student-advisor",
+    "source": "NOUN Update",
+    "id": "academic-advisor-notes",
+    "localTool": "planner",
+    "description": "Prepare questions and track actions from academic-advising conversations."
+  },
+  {
+    "title": "Career & Internship Tracker",
+    "category": "Projects & career",
+    "url": "https://nounupdate.com/career-hub.php",
+    "source": "NOUN Update",
+    "id": "career-internship-tracker",
+    "localTool": "opportunities",
+    "description": "Track applications, deadlines, and next steps for career opportunities."
+  },
+  {
+    "title": "Career Services Planner",
+    "category": "Projects & career",
+    "url": "https://nounupdate.com/career-services",
+    "source": "NOUN Update",
+    "id": "career-services-planner",
+    "localTool": "opportunities",
+    "description": "Organise career goals, contacts, and application follow-ups."
+  },
+  {
+    "title": "Faculty Directory",
+    "category": "Admissions",
+    "url": "https://nounupdate.com/faculties",
+    "source": "NOUN Update",
+    "id": "faculty-directory",
+    "localTool": "directory",
+    "description": "Create a private shortlist of faculties and programme questions."
+  },
+  {
+    "title": "Search the News Archive",
+    "category": "News & announcements",
+    "url": "https://nounupdate.com/search.php",
+    "source": "NOUN Update",
+    "id": "search-news-archive",
+    "localTool": "news",
+    "description": "Search locally indexed headlines and summaries without leaving Nounarchive."
+  },
+  {
+    "title": "NOUN Glossary",
+    "category": "Reference & utilities",
+    "url": "https://nounupdate.com/glossary",
+    "source": "NOUN Update",
+    "id": "noun-glossary",
+    "localTool": "glossary",
+    "description": "Search a compact local glossary of common open-learning and study terms."
+  },
+  {
+    "title": "Frequently Asked Questions",
+    "category": "Reference & utilities",
+    "url": "https://nounupdate.com/faqs",
+    "source": "NOUN Update",
+    "id": "student-faq",
+    "localTool": "faq",
+    "description": "Browse practical answers about using Nounarchive’s study tools."
+  },
+  {
+    "title": "Image Resizer",
+    "category": "Reference & utilities",
+    "url": "https://nounupdate.com/file-resizer/",
+    "source": "NOUN Update",
+    "id": "image-resizer",
+    "localTool": "file-resizer",
+    "description": "Resize a local image in your browser and download the result."
+  },
+  {
+    "id": "bbcnoun-past-questions",
+    "title": "Past Questions Practice Set",
+    "category": "Study & examinations",
+    "url": "https://bbcnoun.com.ng/noun-past-questions/",
+    "source": "BBCNOUN",
+    "localTool": "practice",
+    "description": "Build a private revision set from questions and answers you enter."
+  },
+  {
+    "id": "bbcnoun-course-exam-summaries",
+    "title": "Course & Exam Summaries",
+    "category": "Study & examinations",
+    "url": "https://nounsummary.com/",
+    "source": "BBCNOUN",
+    "localTool": "notes",
+    "description": "Write, organise, and review your own course and exam summaries locally."
+  },
+  {
+    "id": "bbcnoun-cbt-mock",
+    "title": "CBT Mock Exam Practice",
+    "category": "Study & examinations",
+    "url": "https://nounelearn.com/",
+    "source": "BBCNOUN",
+    "localTool": "practice",
+    "description": "Create self-tests from your revision questions and practise in a local workspace."
+  },
+  {
+    "id": "bbcnoun-fee-analysis",
+    "title": "Fee Analysis & Course Outline",
+    "category": "Academics & results",
+    "url": "https://fee.bbcnoun.com.ng/",
+    "source": "BBCNOUN",
+    "localTool": "budget",
+    "description": "Estimate a semester budget from the costs and course details you enter."
+  },
+  {
+    "id": "bbcnoun-course-materials",
+    "title": "Course Materials Library",
+    "category": "Study & examinations",
+    "url": "https://e-courseware.bbcnoun.com.ng/",
+    "source": "BBCNOUN",
+    "localTool": "library",
+    "description": "Save course codes, reading notes, and revision progress in your local library."
+  },
+  {
+    "id": "bbcnoun-result-checker",
+    "title": "Result & CGPA Tracker",
+    "category": "Academics & results",
+    "url": "https://bbcnoun.com.ng/result",
+    "source": "BBCNOUN",
+    "localTool": "grades",
+    "description": "Enter published grades to organise your result summary and calculate a weighted GPA."
+  },
+  {
+    "id": "bbcnoun-personal-timetable",
+    "title": "Personalized Timetable",
+    "category": "Study & examinations",
+    "url": "https://bbcnoun.com.ng/timetable/",
+    "source": "BBCNOUN",
+    "localTool": "timetable",
+    "description": "Create a weekly timetable and check for overlapping study or exam blocks."
+  },
+  {
+    "id": "bbcnoun-project-slip",
+    "title": "Project Topic Slip",
+    "category": "Projects & career",
+    "url": "https://bbcnoun.com.ng/project-slip/",
+    "source": "BBCNOUN",
+    "localTool": "project",
+    "description": "Generate and save project-title ideas and a planning outline locally."
+  },
+  {
+    "id": "bbcnoun-seminar-slip",
+    "title": "Seminar Topic Slip",
+    "category": "Projects & career",
+    "url": "https://bbcnoun.com.ng/seminar/",
+    "source": "BBCNOUN",
+    "localTool": "project",
+    "description": "Draft a seminar outline and organise milestones in this browser."
   }
 ]

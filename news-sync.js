@@ -1,5 +1,5 @@
 import {sources,collect} from './aggregator.js';
-export const REFRESH_MS=60*60*1000;
+export const REFRESH_MS=24*60*60*1000;
 export function mergeArticle(previous,incoming,checkedAt){
  return {...previous,...incoming,publishedAt:incoming.publishedAt||previous?.publishedAt||null,excerpt:incoming.excerpt||previous?.excerpt||'',verifiedAt:checkedAt};
 }

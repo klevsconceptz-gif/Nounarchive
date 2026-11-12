@@ -4,10 +4,10 @@ Choose **one** web deployment: Worker (recommended, simplest) or Pages. Both ser
 
 ## What is ready
 
-- `wrangler.jsonc`: complete Worker + static assets + D1 + hourly Cron Trigger.
+- `wrangler.jsonc`: complete Worker + static assets + D1 + daily Cron Trigger.
 - `wrangler.pages.jsonc`: Pages configuration template; `pages:build` stages it with the frontend and an advanced-mode Functions Worker in `dist/pages-site`.
-- `wrangler.scheduler.jsonc`: hourly collector for the Pages option (Pages itself has no scheduled handler).
-- `cloudflare/migrations/0001_initial.sql`: tables/indexes for news, source status, posts, persistent admin sessions and login throttles.
+- `wrangler.scheduler.jsonc`: daily collector for the Pages option (Pages itself has no scheduled handler).
+- `cloudflare/migrations/0001_initial.sql` and `0003_resources.sql`: tables/indexes for news, resource listings and status, posts, persistent admin sessions and login throttles.
 - Cookie auth, CSRF protection, draft privacy and single-row post updates, without filesystem or native SQLite dependencies in the edge bundle.
 
 The database IDs are deliberately unset. No remote resources have been created, no secrets installed, and no production deployment is implied by successful local builds. Cloudflare account access is required for the steps below. Use the dashboard/CLI for secrets; never paste them into chat or commit them.

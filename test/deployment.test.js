@@ -29,7 +29,7 @@ test('GitHub workflows parse and production deployment supports main and the act
 test('Cloudflare targets share D1 binding and migration path',async()=>{
  const configs=await Promise.all(['wrangler.jsonc','wrangler.pages.jsonc','wrangler.scheduler.jsonc'].map(async file=>JSON.parse(await readFile(file,'utf8'))));
  const [worker,pages,scheduler]=configs;
- for(const c of configs){assert.equal(c.d1_databases[0].binding,'DB');assert.equal(c.d1_databases[0].database_id,worker.d1_databases[0].database_id);assert.ok(c.compatibility_flags.includes('nodejs_compat'));await readFile(c.d1_databases[0].migrations_dir+'/0001_initial.sql');}
+ for(const c of configs){assert.equal(c.d1_databases[0].binding,'DB');assert.equal(c.d1_databases[0].database_id,worker.d1_databases[0].database_id);assert.ok(c.compatibility_flags.includes('nodejs_compat'));for(const migration of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql'])await readFile(c.d1_databases[0].migrations_dir+'/'+migration);}
  assert.equal(pages.triggers,undefined);
  assert.deepEqual(worker.triggers.crons,scheduler.triggers.crons);
 });

@@ -2,9 +2,10 @@ import {Hono} from 'hono';
 import {getCookie,setCookie,deleteCookie} from 'hono/cookie';
 import {bodyLimit} from 'hono/body-limit';
 import {validatePost} from '../post-validation.js';
-import {sources,collect} from '../aggregator.js';
+import {sources,resourceSources,collect,collectResources} from '../aggregator.js';
 import {mergeArticle} from '../news-sync.js';
 import seed from '../data/seed.json';
+import resourceSeed from '../public/resources.json';
 import {digest,randomToken,verifyPassword} from './security.js';
 import {HASH_PATTERN,CLAIM_RESET_SQL,SAVE_RESET_SQL,checkRecoveryToken,validNewPassword,makePasswordHash} from '../admin-recovery.js';
 export const api=new Hono();
@@ -28,7 +29,14 @@ api.get('/api/archive',async c=>{
  const [articles,posts,statuses]=await Promise.all([records(c.env,'SELECT data FROM articles ORDER BY published_at DESC'),records(c.env,"SELECT data FROM posts WHERE status='published' ORDER BY published_at DESC"),records(c.env,'SELECT source,data FROM source_status')]);
  // Snapshot is a fallback, not written implicitly into a live database.
  const merged=new Map(seed.items.map(i=>[i.id,i]));articles.forEach(r=>{const i=JSON.parse(r.data);merged.set(i.id,i);});
- return c.json({snapshotAt:seed.snapshotAt,items:[...merged.values(),...posts.map(r=>postSummary(JSON.parse(r.data)))],status:{...seed.status,...Object.fromEntries(statuses.map(r=>[r.source,JSON.parse(r.data)]))},sources:[...sources,publicSource],syncing:false,refreshMinutes:60});
+ return c.json({snapshotAt:seed.snapshotAt,items:[...merged.values(),...posts.map(r=>postSummary(JSON.parse(r.data)))],status:{...seed.status,...Object.fromEntries(statuses.map(r=>[r.source,JSON.parse(r.data)]))},sources:[...sources,publicSource],syncing:false,refreshMinutes:1440});
+});
+api.get('/api/resources',async c=>{
+ const [stored,statuses]=await Promise.all([records(c.env,'SELECT data FROM resources ORDER BY updated_at DESC'),records(c.env,'SELECT source,data FROM resource_status')]);
+ const merged=new Map(resourceSeed.map(item=>[item.id,item]));
+ for(const row of stored){const item=JSON.parse(row.data);merged.set(item.id,{...merged.get(item.id),...item});}
+ const lastSuccess=Object.values(Object.fromEntries(statuses.map(row=>[row.source,JSON.parse(row.data)]))).filter(result=>result.state==='ok').map(result=>result.lastSuccess).sort().at(-1)||null;
+ return c.json({items:[...merged.values()],status:Object.fromEntries(statuses.map(row=>[row.source,JSON.parse(row.data)])),lastSuccess,refreshMinutes:1440});
 });
 api.get('/api/posts/:id',async c=>{
  const row=await statement(c.env,"SELECT data FROM posts WHERE id=? AND status='published'",c.req.param('id')).first();return row?c.json(JSON.parse(row.data)):c.json({error:'This post is unavailable.'},404);
@@ -89,19 +97,51 @@ api.post('/api/admin/posts',c=>savePost(c,false));api.put('/api/admin/posts/:id'
 api.delete('/api/admin/posts/:id',async c=>{const result=await statement(c.env,'DELETE FROM posts WHERE id=?',c.req.param('id')).run();return result.meta.changes?c.json({ok:true}):c.json({error:'Post not found.'},404);});
 api.notFound(c=>c.json({error:'Not found.'},404));
 api.onError((error,c)=>{console.error(error.message);return c.json({error:'Unable to complete this request. Check configuration and D1 migrations.'},500);});
-export async function syncSources(env){
- // Sequential requests keep CPU/memory predictable on edge runtimes.
- for(const source of sources){
+async function syncNewsSource(env,source){
  const checkedAt=new Date().toISOString();let status;
  try{
- const items=await collect(source);
- const existing=await records(env,'SELECT data FROM articles WHERE source=?',source.id);
- const previous=new Map([...seed.items.filter(item=>item.source===source.id),...existing.map(row=>JSON.parse(row.data))].map(item=>[item.id,item]));
- const writes=items.map(incoming=>{const item=mergeArticle(previous.get(incoming.id),incoming,checkedAt);return statement(env,'INSERT INTO articles(id,source,published_at,data) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET source=excluded.source,published_at=excluded.published_at,data=excluded.data',item.id,item.source,item.publishedAt,JSON.stringify(item));});
- for(let i=0;i<writes.length;i+=50)await env.DB.batch(writes.slice(i,i+50));
- status={state:'ok',checkedAt,lastSuccess:checkedAt,message:`${items.length} articles found`};
- }catch(error){const old=await statement(env,'SELECT data FROM source_status WHERE source=?',source.id).first();status={...(old?JSON.parse(old.data):{}),state:'error',checkedAt,message:error.message};}
+  const incoming=await collect(source);
+  const existing=await records(env,'SELECT data FROM articles WHERE source=?',source.id);
+  const previous=new Map([...seed.items.filter(item=>item.source===source.id),...existing.map(row=>JSON.parse(row.data))].map(item=>[item.id,item]));
+  const writes=incoming.map(article=>{const saved=mergeArticle(previous.get(article.id),article,checkedAt);return statement(env,'INSERT INTO articles(id,source,published_at,data) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET source=excluded.source,published_at=excluded.published_at,data=excluded.data',saved.id,saved.source,saved.publishedAt,JSON.stringify(saved));});
+  for(let i=0;i<writes.length;i+=50)await env.DB.batch(writes.slice(i,i+50));
+  status={state:'ok',checkedAt,lastSuccess:checkedAt,message:`${incoming.length} articles found`};
+ }catch(error){const old=await statement(env,'SELECT data FROM source_status WHERE source=?',source.id).first();status={...(old?JSON.parse(old.data):{}),state:'error',checkedAt,message:String(error?.message||'News refresh failed').slice(0,180)};}
  await statement(env,'INSERT INTO source_status(source,data) VALUES(?,?) ON CONFLICT(source) DO UPDATE SET data=excluded.data',source.id,JSON.stringify(status)).run();
- }
- await env.DB.batch([statement(env,'DELETE FROM admin_sessions WHERE expires<?',Date.now()),statement(env,'DELETE FROM login_attempts WHERE expires<?',Date.now())]);
+}
+
+function canonicalResourceUrl(value){
+ try{const url=new URL(value);url.hash='';if(url.pathname.length>1)url.pathname=url.pathname.replace(/\/+$/,'');return url.href.toLowerCase();}catch{return '';}
+}
+async function syncResourceSource(env,source){
+ const checkedAt=new Date().toISOString();let status;
+ try{
+  const incoming=await collectResources(source);
+  if(!incoming.length)throw new Error('No resource listings found.');
+  const existing=await records(env,'SELECT data FROM resources WHERE source=?',source.name);
+  const previous=[...resourceSeed.filter(item=>item.source===source.name),...existing.map(row=>JSON.parse(row.data))];
+  const byId=new Map(previous.map(item=>[item.id,item]));
+  const byUrl=new Map(previous.map(item=>[canonicalResourceUrl(item.url),item]));
+  const writes=incoming.map(entry=>{
+   const old=byId.get(entry.id)||byUrl.get(canonicalResourceUrl(entry.url));
+   const saved={...old,...entry,id:old?.id||entry.id,firstSeenAt:old?.firstSeenAt||checkedAt,lastSeenAt:checkedAt};
+   return statement(env,'INSERT INTO resources(id,source,updated_at,data) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET source=excluded.source,updated_at=excluded.updated_at,data=excluded.data',saved.id,source.name,checkedAt,JSON.stringify(saved));
+  });
+  for(let i=0;i<writes.length;i+=50)await env.DB.batch(writes.slice(i,i+50));
+  status={state:'ok',checkedAt,lastSuccess:checkedAt,message:`${incoming.length} resources found`};
+ }catch(error){const old=await statement(env,'SELECT data FROM resource_status WHERE source=?',source.id).first();status={...(old?JSON.parse(old.data):{}),state:'error',checkedAt,message:String(error?.message||'Resource refresh failed').slice(0,180)};}
+ await statement(env,'INSERT INTO resource_status(source,data) VALUES(?,?) ON CONFLICT(source) DO UPDATE SET data=excluded.data',source.id,JSON.stringify(status)).run();
+}
+
+export async function syncSources(env){
+ // Fetch independent providers together so the daily run finishes reliably while
+ // every write remains scoped to its own source and existing records are kept.
+ await Promise.all([
+  ...sources.map(source=>syncNewsSource(env,source)),
+  ...resourceSources.map(source=>syncResourceSource(env,source))
+ ]);
+ await env.DB.batch([
+  statement(env,'DELETE FROM admin_sessions WHERE expires<?',Date.now()),
+  statement(env,'DELETE FROM login_attempts WHERE expires<?',Date.now())
+ ]);
 }

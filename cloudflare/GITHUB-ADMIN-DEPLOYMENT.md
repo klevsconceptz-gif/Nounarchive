@@ -2,7 +2,7 @@
 
 ## What gets deployed
 
-**Choose `worker` for the simplest complete deployment.** The Worker serves the public website, `/admin.html`, article pages and API. Cloudflare D1 holds drafts, published posts, imported news and admin sessions. Cron checks news sources hourly. No separate admin hosting is necessary.
+**Choose `worker` for the simplest complete deployment.** The Worker serves the public website, `/admin.html`, article pages and API. Cloudflare D1 holds drafts, published posts, imported news and admin sessions. Cron checks news and resource listings daily. No separate admin hosting is necessary.
 
 The admin panel supports password login, creating/editing updates, categories, summaries, plain-text previews, drafts, publishing, unpublishing and deletion. There is one admin role/password, not public admin registration. Uploaded images and multi-user accounts are not part of this build.
 
@@ -14,7 +14,7 @@ Revoke the token previously posted in chat. Generate a replacement Cloudflare AP
 
 In Cloudflare, open **Storage & databases → D1 → Create database**. Name it `nounarchive`. Copy its **Database ID**, a UUID. This is not the account ID, database name, or API token.
 
-The GitHub workflow will inject the ID and apply `cloudflare/migrations/0001_initial.sql` before deploying. It does not create the remote database itself. Existing local posts require the optional export/import procedure in `DEPLOYMENT.md`.
+The GitHub workflow will inject the ID and apply all checked-in D1 migrations (including the resource catalogue migration) before deploying. It does not create the remote database itself. Existing local posts require the optional export/import procedure in `DEPLOYMENT.md`.
 
 ## 3. Generate the single admin password hash
 
@@ -70,7 +70,7 @@ Approve the `production` environment if prompted. The job:
 2. Validates all required secrets and the admin hash format.
 3. Replaces the D1 placeholder with the real ID.
 4. Exports a temporary database backup and applies pending D1 migrations.
-5. Deploys the full Worker with static assets and hourly cron.
+5. Deploys the full Worker with static assets and daily cron.
 6. Installs `ADMIN_PASSWORD_HASH` as a Worker secret.
 
 A workflow is successful only when all steps succeed. The default database backup stays on the temporary CI runner, so configure durable backups separately. Review the deploy log for the resulting Worker URL. If using a custom domain rather than workers.dev, use that address.

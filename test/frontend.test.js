@@ -42,13 +42,14 @@ test('resource directory preserves records without outbound links and handles no
  dom.window.eval(await readFile('public/resources.js','utf8'));
  await new Promise(r=>setTimeout(r,10));
  const d=dom.window.document;
- assert.equal(d.querySelectorAll('.resource-card').length,19);
+ assert.equal(d.querySelectorAll('.resource-card').length,resources.length);
  assert.doesNotMatch(d.body.textContent,/BBCNOUN|NOUN Update|Puredu|Our sources/);
- assert.equal(d.querySelectorAll('.resource-card a, a.resource-card, .resource-card [href], .resource-card [target]').length,0);
- assert.equal(resources.length,19);
- assert.ok(resources.every(item=>item.url && item.source));
+ assert.equal(d.querySelectorAll('.resource-card a.resource-link').length,resources.length);
+ assert.ok(resources.length>=50);
+ assert.ok(resources.every(item=>item.id&&item.url&&item.source&&item.localTool));
  for(const link of d.querySelectorAll('a[href]'))assert.equal(new URL(link.href).origin,'https://nounarchive.test');
- const select=d.getElementById('resource-category');select.value='Admissions';select.dispatchEvent(new dom.window.Event('change'));assert.equal(d.querySelectorAll('.resource-card').length,4);
+ for(const link of d.querySelectorAll('.resource-card a'))assert.match(link.getAttribute('href'),/^\/tool\.html\?id=/);
+ const select=d.getElementById('resource-category');select.value='Admissions';select.dispatchEvent(new dom.window.Event('change'));assert.equal(d.querySelectorAll('.resource-card').length,resources.filter(item=>item.category==='Admissions').length);
  const search=d.getElementById('resource-search');search.value='nonexistent resource';search.dispatchEvent(new dom.window.Event('input'));assert.equal(d.querySelectorAll('.resource-card').length,0);assert.match(d.getElementById('resource-cards').textContent,/No resources found/);
  }finally{dom.window.close();}
 });
@@ -64,14 +65,15 @@ test('landing page omits outbound links, publisher banners, badges and claims',a
  const dom=new JSDOM(html,{url:'https://nounarchive.test/',runScripts:'outside-only'});
  try{
  const resources=JSON.parse(await readFile('public/resources.json','utf8'));
- const w=dom.window;w.fetch=async url=>({ok:true,json:async()=>url==='/resources.json'?resources:({...seed,sources})});w.setInterval=()=>0;
+ const w=dom.window;w.fetch=async url=>({ok:true,json:async()=>url==='/api/resources'?{items:resources,refreshMinutes:1440}:({...seed,sources})});w.setInterval=()=>0;
  w.eval(await readFile('public/app.js','utf8'));w.eval(await readFile('public/resources.js','utf8'));await new Promise(r=>setTimeout(r,10));
  const d=w.document;
  assert.doesNotMatch(d.body.textContent,/An independent student news index|Not affiliated with NOUN|Imported articles belong|News from BBCNOUN|TRANSPARENT BY DESIGN|Know where your news comes from|Imported stories link|Source health below|All three sources synced successfully|sources synced successfully|External services are provided by/);
  assert.equal(d.querySelectorAll('#sources,#source-status,.publisher,a[href="#sources"]').length,0);
  assert.equal(d.querySelectorAll('#cards .card').length,6);
  assert.equal(d.querySelectorAll('.resource-card').length,3);
- assert.equal(d.querySelectorAll('#source,#cards h3 a').length,0);
+ assert.equal(d.querySelectorAll('#source').length,0);
+ assert.equal(d.querySelectorAll('#cards h3 a').length,6);
  assert.doesNotMatch(d.body.textContent,/BBCNOUN|NOUN Update|Puredu|Browse by source|News publisher/);
  for(const a of d.querySelectorAll('a[href]'))assert.equal(new URL(a.href).origin,w.location.origin,a.outerHTML);
  d.getElementById('load-more').click();
@@ -83,9 +85,9 @@ test('landing page omits outbound links, publisher banners, badges and claims',a
 });
 
 test('student-platform theme is shared across pages with an original responsive hero graphic',async()=>{
- for(const name of ['index','resources','admin','post']){
+ for(const name of ['index','resources','admin','post','tool','story']){
  const dom=new JSDOM(await readFile('public/'+name+'.html','utf8'));
- try{const d=dom.window.document;const sheets=[...d.querySelectorAll('link[rel="stylesheet"]')].map(link=>link.getAttribute('href'));assert.equal(sheets.at(-1),'/platform.css');if(name==='index'){const img=d.querySelector('.intro-note img');assert.equal(img.getAttribute('src'),'/student-hub.svg');assert.ok(img.alt);assert.equal(d.querySelectorAll('.platform-actions a').length,2);}}finally{dom.window.close();}
+ try{const d=dom.window.document;const sheets=[...d.querySelectorAll('link[rel="stylesheet"]')].map(link=>link.getAttribute('href'));assert.equal(sheets.at(-1),['resources','tool','story'].includes(name)?'/tools.css':'/platform.css');if(name==='index'){const img=d.querySelector('.intro-note img');assert.equal(img.getAttribute('src'),'/student-hub.svg');assert.ok(img.alt);assert.equal(d.querySelectorAll('.platform-actions a').length,2);}}finally{dom.window.close();}
  }
  const svg=await readFile('public/student-hub.svg','utf8');assert.match(svg,/viewBox="0 0 620 460"/);assert.doesNotMatch(svg,/<script/i);
 });
@@ -101,7 +103,8 @@ test('homepage preserves internal editorial links but never links to foreign or 
  ];w.fetch=async()=>({ok:true,json:async()=>({items,sources:[],status:{}})});w.setInterval=()=>0;w.HTMLElement.prototype.scrollIntoView=()=>{};
  w.eval(await readFile('public/app.js','utf8'));await new Promise(r=>setTimeout(r,10));
  const d=w.document;assert.equal(d.querySelector('#featured h2 a').getAttribute('href'),items[0].url);
- assert.equal(d.querySelectorAll('#cards h3 a').length,1);
+ assert.equal(d.querySelectorAll('#cards h3 a').length,2);
+ assert.equal(d.querySelector('#cards h3 a[href="/story.html?id=unsafe"]')?.getAttribute('href'),'/story.html?id=unsafe');
  for(const a of d.querySelectorAll('a[href]'))assert.equal(new URL(a.href).origin,w.location.origin);
  d.querySelector('[data-save="own"]').click();d.getElementById('saved-nav').click();assert.equal(d.querySelectorAll('#cards .card').length,1);
  }finally{dom.window.close();}
@@ -171,14 +174,14 @@ test('resource directory accepts quick-access search and journey category parame
  try{
  const w=dom.window;w.fetch=async()=>({ok:true,json:async()=>resources});w.eval(await readFile('public/resources.js','utf8'));await new Promise(r=>setTimeout(r,10));const d=w.document;
  assert.ok(d.querySelectorAll('.resource-card').length>0);
- if(query.includes('Admissions')){assert.equal(d.getElementById('resource-category').value,'Admissions');assert.equal(d.querySelectorAll('.resource-card').length,4);}else assert.equal(d.getElementById('resource-search').value,'result');
+ if(query.includes('Admissions')){assert.equal(d.getElementById('resource-category').value,'Admissions');assert.equal(d.querySelectorAll('.resource-card').length,resources.filter(item=>item.category==='Admissions').length);}else assert.equal(d.getElementById('resource-search').value,'result');
  }finally{dom.window.close();}
  }
 });
 
 
 test('all HTML pages use only same-origin navigation and no automatic redirects',async()=>{
- for(const file of ['index.html','resources.html','post.html','admin.html']){
+ for(const file of ['index.html','resources.html','post.html','admin.html','tool.html','story.html']){
   const dom=new JSDOM(await readFile('public/'+file,'utf8'),{url:'https://nounarchive.test/'+file});
   try{
    const d=dom.window.document;
@@ -201,7 +204,9 @@ test('resource URLs cannot create external navigation or executable markup',asyn
   await new Promise(r=>setTimeout(r,10));
   const d=dom.window.document;
   assert.equal(d.querySelectorAll('article.resource-card').length,3);
-  assert.equal(d.querySelectorAll('.resource-card a,.resource-card [href],.resource-card [onclick]').length,0);
+  assert.equal(d.querySelectorAll('.resource-card a.resource-link').length,3);
+  assert.equal(d.querySelectorAll('.resource-card [onclick]').length,0);
+  for(const a of d.querySelectorAll('.resource-card a')){assert.match(a.getAttribute('href'),/^\/tool\.html\?id=/);assert.equal(new URL(a.href).origin,'https://nounarchive.test');}
   assert.doesNotMatch(d.body.textContent,/Private origin/);
  }finally{dom.window.close();}
 });
