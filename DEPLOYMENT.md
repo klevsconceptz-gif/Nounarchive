@@ -163,13 +163,13 @@ For dashboard-connected Workers Builds, add a **build variable** named `D1_DATAB
 
 The deployment workflow runs automatically after changes merge into `main`, deploying the complete Worker. Manual runs also deploy from `main` and can select Worker or Pages. The GitHub `production` environment must allow `main` and contain the required Cloudflare secrets and `D1_DATABASE_ID` variable. Pages remains a manual alternative; deploy only one collector against a production D1 database.
 
-## Actions ownership and full-SHA policy
+## GitHub Actions ownership policy
 
-If a run is rejected because actions must be owned by `klevsconceptz-gif` and pinned to a full commit SHA, both restrictions must be satisfied. Direct action references in the workflow files are pinned to verified 40-character commits from the official `actions` repositories. SHA pinning does **not** make those repositories owned by `klevsconceptz-gif`.
+The supported CI and deployment workflows intentionally use **no `uses:` action references**. They fetch the exact event commit as a GitHub API source archive using the workflow's read-only `github.token`, then use a compatible Node.js version from the runner tool cache or bootstrap the exact `.nvmrc` Linux x64 runtime from npm when no suitable version is cached. This avoids third-party action ownership requirements without weakening the repository's action policy. The manual deployment trigger uses the runner's preinstalled GitHub CLI.
 
-A repository/organization administrator must approve the official GitHub actions through **Settings → Actions → General → Actions permissions** (or the governing organization policy). Keep the full-length SHA requirement enabled. Use **Allow actions created by GitHub**, if permitted, or explicitly allow the required repositories rather than allowing every third-party action. The supported CI and deployment workflows require only `actions/checkout` and `actions/setup-node`.
+If actions are added later, they must come from a repository owned by `klevsconceptz-gif` and be pinned to a full 40-character commit SHA. Do not reintroduce external `actions/checkout` or `actions/setup-node` references unless the repository/organization policy is changed to allow them.
 
-If policy intentionally permits only owner-controlled repositories, approved owner-maintained mirrors are another administrative option; fork and review those repositories first and pin their actual commits. Do not merely replace `actions/` with your username without creating and verifying the repositories. Repository settings cannot override a stricter organization policy. After policy approval and merging the pinned workflow changes, start a fresh run on the updated commit. Updating the workflow cannot grant Arena's GitHub integration permission to dispatch Actions; that is a separate connection permission.
+The current workflows need no action-owner approval. Workflow-dispatch permission is independent of the action allowlist and is not changed by these workflow files.
 
 ## Repository-level admin password hash
 
