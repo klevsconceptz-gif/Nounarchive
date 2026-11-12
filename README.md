@@ -4,7 +4,7 @@
 
 **GitHub + Cloudflare quick start:** [Deployment checklist](DEPLOYMENT.md).
 
-**Cloudflare deployment:** See [Workers & Pages deployment guide](cloudflare/DEPLOYMENT.md). Both edge targets use D1; the Node/SQLite instructions below apply only to conventional server hosting.
+**Cloudflare deployment:** See [Workers & Pages deployment guide](cloudflare/DEPLOYMENT.md). Both edge targets use Workers KV for refreshed news/resources and D1 for posts/admin data; the Node/SQLite instructions below apply only to conventional server hosting.
 
 A searchable Nounarchive of NOUN headlines, summaries and student workspaces collected from BBCNOUN, NOUN Update and Puredu. Source URLs are retained as internal metadata and are never used as public navigation.
 
@@ -81,7 +81,7 @@ npm start
 
 `db:init` creates indexed `articles` and `posts` tables, archive metadata and a migration ledger. It imports legacy JSON files once, or uses the bundled snapshot when there is no legacy archive. It never reimports over subsequent edits or deleted posts. Database initialization also runs automatically on server startup. Invalid legacy JSON causes initialization to fail rather than silently discard data. `/api/health` checks a database query.
 
-Set `DATABASE_PATH` to a persistent, non-public file path; the default is `data/nounarchive.sqlite`. The directory must be writable by the application. Keep a single application instance because feed/admin read caches and sessions are process-local. This section applies only to the traditional Node server; Cloudflare Worker and Pages deployments persist application data in D1 through the `DB` binding.
+Set `DATABASE_PATH` to a persistent, non-public file path; the default is `data/nounarchive.sqlite`. The directory must be writable by the application. Keep a single application instance because feed/admin read caches and sessions are process-local. This section applies only to the traditional Node server; Cloudflare Worker and Pages use the `kv` binding for refreshed news/resources and the `DB` D1 binding for editorial/admin records.
 
 Create a consistent online backup with:
 
@@ -106,8 +106,8 @@ The admin sign-in screen includes an owner-assisted **Reset password** flow with
 
 ## Daily news and resource imports
 
-The Node server imports headlines, short summaries, and resource listings on startup and every 24 hours while running, unless `DISABLE_SYNC=1`. The complete Cloudflare Worker uses the `0 0 * * *` UTC Cron Trigger. Pages requires the separate `nounarchive-scheduler` Worker to be deployed against the same D1 database; Pages Functions alone do not execute cron jobs. Deploy only one collector for a production database to avoid redundant requests.
+The Node server imports headlines, short summaries, and resource listings on startup and every 24 hours while running, unless `DISABLE_SYNC=1`. The complete Cloudflare Worker uses the `0 0 * * *` UTC Cron Trigger to update KV and mirror to D1 when available. Pages requires the separate `nounarchive-scheduler` Worker to use the same D1 database and KV namespace; Pages Functions alone do not execute cron jobs. Deploy only one collector for a production database and KV namespace to avoid redundant requests.
 
-For an immediate local SQLite refresh, run `npm run news:sync`. It now refreshes both news and resource listings, records each provider check, and exits nonzero if any source fails. Existing items and successful timestamps are retained when a source is unavailable. This local command does not update production D1. Browsers read the archive API independently of upstream refresh timing. Imported headlines open internal summary pages; source URLs stay in stored metadata and are never used as browser navigation targets.
+For an immediate local SQLite refresh, run `npm run news:sync`. It now refreshes both news and resource listings, records each provider check, and exits nonzero if any source fails. Existing items and successful timestamps are retained when a source is unavailable. This local command does not update production Cloudflare KV or D1. Browsers read the archive API independently of upstream refresh timing. Imported headlines open internal summary pages; source URLs stay in stored metadata and are never used as browser navigation targets.
 
 A passing build does not establish that production feeds are reachable or that the deployed Cron Trigger has run. Verify the daily status timestamps in `/api/archive`, `/api/resources`, or Cloudflare logs after deployment.

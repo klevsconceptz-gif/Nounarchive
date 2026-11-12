@@ -1,6 +1,6 @@
 # Nounarchive: GitHub → Cloudflare deployment checklist
 
-**Recommended:** one Cloudflare Worker serves the complete site and API, D1 stores articles, resource listings, and posts, and a daily Cron Trigger refreshes news and tools. Pages is also supported, using a separate scheduler Worker. Choose **one** web target; do not enable two collectors against the same database.
+**Recommended:** one Cloudflare Worker serves the complete site and API. Cloudflare KV stores the refreshed news and resource snapshots for public reads; D1 remains the durable mirror and stores posts, admin credentials, sessions, and throttles. A daily Cron Trigger refreshes news and tools. Pages is also supported, using a separate scheduler Worker. Choose **one** web target; do not enable two collectors against the same database and KV namespace.
 
 No remote D1 instance or production deployment is created by this guide. All remote commands require your authorized Cloudflare account. Keep passwords and API tokens in secret settings, not chat or Git.
 
@@ -45,6 +45,8 @@ npm run cf:db:remote
 
 `cf:configure` updates the D1 `DB` binding in all three Cloudflare configurations. The ID is not a password. Remote scripts deliberately refuse to deploy while an ID is unset.
 
+The supplied Cloudflare KV namespace is configured in all three files as the lowercase `kv` binding (`d54d022f45014955a5c21a5024ac5720`). This is an identifier, not a secret; confirm that the namespace exists in the Cloudflare account used for deployment. Public archive and resource reads prefer per-source KV snapshots and merge D1 rows as a fallback. The daily collector writes KV first and mirrors to D1 when D1 is available, so scheduled news/resource refreshes and public reads can continue during a D1 outage. D1 remains necessary for admin, posts, sessions, and throttling.
+
 The checked-in migrations create:
 
 - `articles` and `source_status` — imported news and provider health
@@ -77,13 +79,9 @@ Add these **environment secrets**:
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID from the Cloudflare dashboard |
 | `CLOUDFLARE_ADMIN_PASSWORD_HASH` | Complete generated hash, without surrounding quotes |
 
-Add this **environment variable**:
+Optionally add the **environment variable** `D1_DATABASE_ID` to override the IDs in the checked-in Wrangler configs. If omitted, the deployment workflow validates and uses the configured UUIDs. Dashboard-connected Workers Builds still require their own `D1_DATABASE_ID` build variable.
 
-| Name | Value |
-|---|---|
-| `D1_DATABASE_ID` | Actual D1 UUID from section 3 |
-
-Scope the Cloudflare token to the account and the capabilities required: **D1 Edit** (migration/export), **Workers Scripts Edit** (Worker, scheduler and secrets), and **Cloudflare Pages Edit** if deploying Pages. Some Wrangler discovery operations may also require account/membership read access. Do not use a global API key. Add domain/zone permissions only if you automate custom-domain changes.
+Scope the Cloudflare token to the account and the capabilities required: **D1 Edit** (migration/export), **Workers Scripts Edit** (Worker, scheduler and secrets), **Workers KV Storage Edit** (bind and refresh the news/resource namespace), and **Cloudflare Pages Edit** if deploying Pages. Some Wrangler discovery operations may also require account/membership read access. Do not use a global API key. Add domain/zone permissions only if you automate custom-domain changes.
 
 Do not add any of these secrets to browser JavaScript or `.env.example`. The workflow checks configuration without printing secret values, tests before deployment, exports a D1 backup to its temporary runner, applies migrations, and deploys the selected target. It serializes production jobs and does not cancel migrations in flight. The runner backup is **not** a durable backup; keep a separate D1 export/Cloudflare recovery policy for production.
 
@@ -110,7 +108,7 @@ npm run pages:deploy -- --branch main
 npm run cf:deploy:scheduler
 ```
 
-The Pages command compiles/stages an advanced-mode Functions Worker alongside static assets, using the configured D1 binding. Do not deploy `public/` alone or set the Pages build command to `npm start`: that would not provide this application's backend. Pages does not support Cron Triggers itself; `nounarchive-sync` provides daily collection against the same D1 database.
+The Pages command compiles/stages an advanced-mode Functions Worker alongside static assets, using the configured D1 and `kv` bindings. Do not deploy `public/` alone or set the Pages build command to `npm start`: that would not provide this application's backend. Pages does not support Cron Triggers itself; `nounarchive-sync` provides daily collection against the same D1 database and KV namespace.
 
 The repository-root `wrangler.jsonc` is intentionally the **Workers** configuration. Use the supplied Pages CLI staging workflow rather than a naive dashboard Git import pointed at the repository root.
 
@@ -126,7 +124,7 @@ After the environment settings are configured and the workflow is available:
 
 For Pages, create the `nounarchive` Pages project once with the command in section 5A before running the workflow. The workflow installs the admin hash as a Pages secret before the new deployment. Worker deployment publishes the Worker, then installs the hash as a Worker secret. Failures are reported by the job; deployments are not automatically retried or rolled back after a schema migration.
 
-If changing targets later, disable the previous scheduler via the Cloudflare dashboard before enabling the new one. Switching the workflow input does not remove an earlier deployment or cron trigger.
+If changing targets later, disable the previous scheduler via the Cloudflare dashboard before enabling the new one. Switching the workflow input does not remove an earlier deployment or cron trigger. Never run two collectors against the same D1 database and KV namespace.
 
 ## 6. Move existing posts, if needed
 
@@ -143,6 +141,7 @@ This private export may include drafts. It preserves existing D1 rows, excludes 
 ## 7. Verify production
 
 - `/api/health` returns `{"ok":true,"database":"d1"}` only after all required D1 tables exist; it returns HTTP 503 if a migration is missing.
+- `/api/archive` and `/api/resources` serve per-source KV snapshots first, merge any readable D1 records, and retain bundled seed data. They should remain available during a D1 outage.
 - `/` loads the feed and can search/filter updates.
 - `/admin.html` signs in with your chosen password.
 - Save a draft: it must not appear in the public feed or direct public article API.
@@ -151,7 +150,7 @@ This private export may include drafts. It preserves existing D1 rows, excludes 
 - After the daily Cron Trigger runs, inspect source health and last-success times.
 - Add your custom domain and verify HTTPS and login cookies.
 
-External source ingestion, especially NOUN Update's dynamic listing, still needs live-host verification. A passing deployment health check does not imply all three sources are reachable. Choose a Cloudflare plan/CPU allowance appropriate for feed parsing and password hashing, and monitor errors and D1 usage.
+External source ingestion, especially NOUN Update's dynamic listing, still needs live-host verification. A passing deployment health check does not imply all three sources are reachable. Choose a Cloudflare plan/CPU allowance appropriate for feed parsing and password hashing, and monitor Cron/Functions errors, KV usage and D1 usage.
 
 For architecture, local edge preview, backups and operational details, see [cloudflare/DEPLOYMENT.md](cloudflare/DEPLOYMENT.md).
 
@@ -161,7 +160,7 @@ For dashboard-connected Workers Builds, add a **build variable** named `D1_DATAB
 
 ## Consolidated production deployment
 
-The deployment workflow runs automatically after changes merge into `main`, deploying the complete Worker. Manual runs also deploy from `main` and can select Worker or Pages. The GitHub `production` environment must allow `main` and contain the required Cloudflare secrets and `D1_DATABASE_ID` variable. Pages remains a manual alternative; deploy only one collector against a production D1 database.
+The deployment workflow runs automatically after changes merge into `main`, deploying the complete Worker. Manual runs also deploy from `main` and can select Worker or Pages. The GitHub `production` environment must allow `main` and contain the required Cloudflare secrets. The `D1_DATABASE_ID` environment variable is optional when the checked-in Wrangler configs already contain the correct UUID. Pages remains a manual alternative; deploy only one collector against a production D1 database.
 
 ## GitHub Actions ownership policy
 

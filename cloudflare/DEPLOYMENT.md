@@ -1,16 +1,16 @@
 # Deploy Nounarchive to Cloudflare
 
-Choose **one** web deployment: Worker (recommended, simplest) or Pages. Both serve the same frontend and API on one origin and use a persistent Cloudflare D1 database. The existing Node/SQLite server remains available for conventional hosting, but is **not** the Cloudflare entry point.
+Choose **one** web deployment: Worker (recommended, simplest) or Pages. Both serve the same frontend and API on one origin, use KV for refreshed news/resource snapshots, and use D1 for editorial posts and admin data. The existing Node/SQLite server remains available for conventional hosting, but is **not** the Cloudflare entry point.
 
 ## What is ready
 
-- `wrangler.jsonc`: complete Worker + static assets + D1 + daily Cron Trigger.
-- `wrangler.pages.jsonc`: Pages configuration template; `pages:build` stages it with the frontend and an advanced-mode Functions Worker in `dist/pages-site`.
-- `wrangler.scheduler.jsonc`: daily collector for the Pages option (Pages itself has no scheduled handler).
+- `wrangler.jsonc`: complete Worker + static assets + D1 + KV + daily Cron Trigger.
+- `wrangler.pages.jsonc`: Pages configuration template with the same D1/KV bindings; `pages:build` stages it with the frontend and an advanced-mode Functions Worker in `dist/pages-site`.
+- `wrangler.scheduler.jsonc`: daily collector for the Pages option (Pages itself has no scheduled handler), bound to the same D1 database and KV namespace.
 - `cloudflare/migrations/0001_initial.sql`, `0002_admin_recovery.sql` and `0003_resources.sql`: tables/indexes for news, resources, posts, sessions, login throttles and password recovery.
 - Cookie auth, CSRF protection, draft privacy and single-row post updates, without filesystem or native SQLite dependencies in the edge bundle.
 
-No remote resources have been created, no secrets installed, and no production deployment is implied by successful local builds. The GitHub production workflow injects `D1_DATABASE_ID` before applying migrations and deploying; direct CLI deployments must configure the actual D1 UUID for the target account. Cloudflare account access is required for remote operations. Use the dashboard/CLI for secrets; never paste them into chat or commit them.
+Local builds do not create remote resources, install secrets, or deploy production. The supplied KV namespace ID `d54d022f45014955a5c21a5024ac5720` is configured as binding `kv` in all Wrangler targets; it is an identifier, not a secret, and must belong to the deploying account. The GitHub production workflow injects `D1_DATABASE_ID` before applying migrations and deploying; direct CLI deployments must configure the actual D1 UUID for the target account. Cloudflare account access is required for remote operations. Use the dashboard/CLI for secrets; never paste them into chat or commit them.
 
 ## 1. Install and validate
 
@@ -21,9 +21,9 @@ npm ci
 npm test
 ```
 
-The traditional Node server and migration export use Node's built-in `node:sqlite`; there is no third-party native SQLite addon. Node 22 emits an experimental SQLite warning. The Cloudflare bundle uses D1 exclusively and does not import `node:sqlite`.
+The traditional Node server and migration export use Node's built-in `node:sqlite`; there is no third-party native SQLite addon. Node 22 emits an experimental SQLite warning. The Cloudflare bundle uses D1 and Workers KV and does not import `node:sqlite`.
 
-`npm test` builds both targets and tests both bundles in the local Workers runtime with D1, in addition to the Node server, parsers, storage and UI tests. No Cloudflare account or network source access is needed for these tests.
+`npm test` builds both targets and tests both bundles in the local Workers runtime with D1 and a simulated KV namespace, in addition to the Node server, parsers, storage and UI tests. No Cloudflare account or network source access is needed for these tests.
 
 ## 2. Authenticate, create D1 and configure the real ID
 
@@ -37,7 +37,7 @@ npm run cf:configure -- <actual-database-uuid>
 npm run cf:db:remote
 ```
 
-The configure command writes the same ID into all three templates. D1 IDs are identifiers, not API secrets. Deployment and remote-migration commands validate the UUID, but only an authenticated Cloudflare request can confirm that it exists in the intended account. For automation, set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in your CI secret store with least-privilege D1, Workers and/or Pages permissions, instead of interactive login. Do not hardcode credentials in the repository.
+The configure command writes the same ID into all three templates. D1 IDs are identifiers, not API secrets. Deployment and remote-migration commands validate the UUID, but only an authenticated Cloudflare request can confirm that it exists in the intended account. The configured KV namespace is also shared across the three Wrangler targets under the lowercase binding `kv`. `/api/archive` and `/api/resources` read source-specific KV snapshots first, merge any readable D1 rows as fallback, and always retain bundled seed data. The daily collector refreshes the KV snapshots even if D1 is unavailable; D1 mirrors those records when available and remains required for admin and editorial data. Give the deployment token **Workers KV Storage Edit** in addition to the required D1/Workers/Pages permissions. For automation, set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in your CI secret store with least-privilege D1, KV, Workers and/or Pages permissions, instead of interactive login. Do not hardcode credentials in the repository.
 
 For a **separate staging environment**, create a separate D1 database and configure its ID in a separate checkout/config. Do not point untrusted preview deployments at the production D1 database: preview admins could modify production posts.
 
@@ -52,7 +52,7 @@ npx wrangler secret put ADMIN_PASSWORD_HASH
 
 `cf:admin-hash` prompts for a strong password without terminal echo and generates a salted PBKDF2-SHA256 hash. The Worker accepts `ADMIN_PASSWORD_HASH`, **not** the Node server's `ADMIN_PASSWORD` or scrypt credential file. The password itself is never embedded in the client. Hash output is sensitive; do not save it in tracked files.
 
-Deploying the secret creates a new Worker version. Visit the URL reported by Wrangler, then `/admin.html`. Cron runs daily at 00:00 UTC; no always-on process is needed. You do not need the standalone scheduler for this option.
+Deploying the secret creates a new Worker version. Visit the URL reported by Wrangler, then `/admin.html`. Cron runs daily at 00:00 UTC; it refreshes the KV news/resource snapshots and mirrors to D1 when available. No always-on process or standalone scheduler is needed for this option.
 
 ## 3B. Pages deployment
 
@@ -63,17 +63,17 @@ npm run cf:admin-hash
 npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name nounarchive
 # Publish again so the new secret is available to the deployment:
 npm run pages:deploy -- --branch main
-# Pages cannot run cron. Deploy this collector against the SAME D1 database:
+# Pages cannot run cron. Deploy this collector against the SAME D1 database and KV namespace:
 npm run cf:deploy:scheduler
 ```
 
-The Pages script compiles `functions/api/[[path]].js`, stages an advanced-mode `_worker.js` alongside assets, and runs Wrangler **from the staged Pages root**. This prevents the repository's standalone Worker config from being mistaken for a Pages config. Deploy using this script rather than uploading `public/` alone: a static-only upload would have no APIs. `public/_routes.json` sends only `/api/*` to Functions; static assets remain static. No cross-origin URL, CORS configuration, localhost backend or frontend API key is required.
+The Pages script compiles `functions/api/[[path]].js`, stages an advanced-mode `_worker.js` alongside assets, and runs Wrangler **from the staged Pages root**. This prevents the repository's standalone Worker config from being mistaken for a Pages config. Deploy using this script rather than uploading `public/` alone: a static-only upload would have no APIs. `public/_routes.json` sends only `/api/*` to Functions; static assets remain static. The staged Pages config carries the same D1 and `kv` bindings. No cross-origin URL, CORS configuration, localhost backend or frontend API key is required.
 
 For dashboard/Git build integration, use the CLI workflow above first. The repository-root config intentionally targets Workers; a Pages Git integration needs its own configured project root/config so it does not select `wrangler.jsonc`. Do not select `server.js` as a Pages entry point.
 
 Production and preview secrets/bindings can differ in Cloudflare. Set the admin hash only in the environment you intend to use, and use separate databases for previews. The staged config binds a database; verify it before deploying.
 
-The standalone scheduler has no public ingestion endpoint and needs no admin secret. Do not also enable the full Worker cron against the same database; deploy one scheduler, not both.
+The standalone scheduler has no public ingestion endpoint and needs no admin secret. Do not also enable the full Worker cron against the same D1 database and KV namespace; deploy one scheduler, not both.
 
 ## 4. Existing content migration (optional)
 
@@ -125,12 +125,12 @@ For local cron testing with the installed Wrangler version, run `npm run cf:dev`
 
 ## Operations and limits
 
-- D1 reads each request, and sessions/throttles are persistent: no process-local cache/session store is used in the edge backend.
+- Public news and resource endpoints read per-source snapshots from KV and fall back to D1 plus bundled seed data; those endpoints can serve and refresh content while D1 is unavailable. D1 remains required for health, admin, posts, sessions and throttles; those records are not moved into KV.
 - Changing `ADMIN_PASSWORD_HASH` invalidates all existing sessions on their next request. Sessions expire after eight hours and are cleaned up by cron.
 - Login is limited to five attempts per client IP in 15 minutes; IPs are hashed before storage. Cloudflare supplies `CF-Connecting-IP`. Add Cloudflare Access/WAF controls if stronger perimeter restrictions are needed.
-- Source refreshes upsert only imported articles and preserve editorial posts and last-success data when a source fails. Simultaneous scheduled attempts are idempotent by article ID, but source health reflects the last completed attempt.
-- HTML/feed parsing and password hashing consume CPU. Select a Worker plan/CPU allowance suitable for the workload and monitor Cron/Functions errors and D1 usage. A successful build is not a production capacity test.
-- The full archive is returned in one API response, as in the Node build. Plan server-side pagination before the archive grows large; Cloudflare/D1 query and response limits still apply.
+- Source refreshes write one versioned KV snapshot per provider, preserve historical articles/resources and last-success data when a source fails, and best-effort mirror new rows into D1. Editorial posts are untouched. KV values are capped at 25 MiB each; monitor the Worker log for oversized snapshots or KV write failures. KV is eventually consistent, so a newly refreshed snapshot may take a short time to appear at every edge location.
+- HTML/feed parsing and password hashing consume CPU. Select a Worker plan/CPU allowance suitable for the workload and monitor Cron/Functions errors, KV usage and D1 usage. A successful build is not a production capacity test.
+- The full archive is returned in one API response, as in the Node build, and each provider's persisted snapshot occupies one KV value (25 MiB maximum). Plan server-side pagination or chunked KV records before either limit is approached; response and Cloudflare KV limits still apply.
 - Source-specific ingestion restrictions remain: NOUN Update's dynamic listing is not yet live-verified. No anti-bot, paywall or authentication bypass is provided.
 
 ## Workers Builds dashboard: resolving D1 error 10021

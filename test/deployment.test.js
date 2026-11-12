@@ -22,6 +22,8 @@ test('GitHub workflows parse and production deployment is restricted to main',as
  assert.equal(deploy.permissions.contents,'read');
  assert.ok(deploy.jobs.deploy.steps.some(step=>step.run==='npm test'));
  const validation=deploy.jobs.deploy.steps.find(step=>step.name==='Validate deployment settings');
+ assert.match(validation.run,/cf:configure -- --check/);
+ assert.doesNotMatch(validation.run,/Missing production environment setting: D1_DATABASE_ID/);
  // Extract and execute the exact hash-validation expression embedded in the workflow.
  const hashLine=validation.run.split('\n').find(line=>line.includes('pbkdf2-sha256'));
  const literal=hashLine.split('if (!')[1].split('.test(process.env.ADMIN_PASSWORD_HASH)')[0];
@@ -53,7 +55,8 @@ test('only application-specific GitHub Actions workflows are active',async()=>{
 test('Cloudflare targets share D1 binding and migration path',async()=>{
  const configs=await Promise.all(['wrangler.jsonc','wrangler.pages.jsonc','wrangler.scheduler.jsonc'].map(async file=>JSON.parse(await readFile(file,'utf8'))));
  const [worker,pages,scheduler]=configs;
- for(const c of configs){assert.equal(c.d1_databases[0].binding,'DB');assert.equal(c.d1_databases[0].database_id,worker.d1_databases[0].database_id);assert.ok(c.compatibility_flags.includes('nodejs_compat'));for(const migration of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql'])await readFile(c.d1_databases[0].migrations_dir+'/'+migration);}
+ for(const c of configs){assert.equal(c.d1_databases[0].binding,'DB');assert.equal(c.d1_databases[0].database_id,worker.d1_databases[0].database_id);assert.deepEqual(c.kv_namespaces,[{binding:'kv',id:'d54d022f45014955a5c21a5024ac5720'}]);assert.ok(c.compatibility_flags.includes('nodejs_compat'));for(const migration of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql'])await readFile(c.d1_databases[0].migrations_dir+'/'+migration);}
+ const stagedPages=JSON.parse(await readFile('dist/pages-site/wrangler.jsonc','utf8'));assert.deepEqual(stagedPages.kv_namespaces,worker.kv_namespaces);
  assert.equal(pages.triggers,undefined);
  assert.deepEqual(worker.triggers.crons,scheduler.triggers.crons);
 });

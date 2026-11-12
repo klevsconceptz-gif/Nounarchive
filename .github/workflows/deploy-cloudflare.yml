@@ -59,12 +59,17 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           node --input-type=module - <<'JS'
-          for (const name of ['CLOUDFLARE_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','D1_DATABASE_ID','ADMIN_PASSWORD_HASH']) {
+          for (const name of ['CLOUDFLARE_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','ADMIN_PASSWORD_HASH']) {
             if (!process.env[name]) throw new Error('Missing production environment setting: '+name);
           }
           if (!/^pbkdf2-sha256\$100000\$[a-f0-9]{64}\$[a-f0-9]{64}$/.test(process.env.ADMIN_PASSWORD_HASH)) throw new Error('Invalid admin password hash format.');
           JS
-          npm run cf:configure -- "$D1_DATABASE_ID"
+          if [[ -n "$D1_DATABASE_ID" ]]; then
+            npm run cf:configure -- "$D1_DATABASE_ID"
+          else
+            unset D1_DATABASE_ID
+            npm run cf:configure -- --check
+          fi
       - name: Back up D1 and apply migrations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
