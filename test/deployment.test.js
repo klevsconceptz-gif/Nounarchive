@@ -12,7 +12,7 @@ test('GitHub workflows parse and production deployment is restricted to main',as
  assert.equal(deploy.jobs.deploy.if,"github.ref == 'refs/heads/main'");
  assert.equal(deploy.jobs.deploy.steps[0].name,'Fetch source archive at the event commit');
  assert.match(deploy.jobs.deploy.steps[0].run,/GITHUB_SHA/);
- assert.equal(deploy.jobs.deploy.steps[1].name,'Select a compatible runner-cached Node.js');
+ assert.equal(deploy.jobs.deploy.steps[1].name,'Select or bootstrap the required Node.js runtime');
  assert.equal(deploy.jobs.deploy.environment,'production');
  assert.equal(deploy.concurrency['cancel-in-progress'],false);
  assert.equal(deploy.permissions.contents,'read');
@@ -39,7 +39,7 @@ test('workflow actions are restricted to owner-controlled repositories and full 
   }
  }
  const selector=await readFile('.github/scripts/select-node.sh','utf8');
- assert.match(selector,/RUNNER_TOOL_CACHE/);assert.match(selector,/GITHUB_PATH/);assert.match(selector,/node-linux-x64@\$required/);
+ assert.match(selector,/RUNNER_TOOL_CACHE/);assert.match(selector,/GITHUB_PATH/);assert.match(selector,/node-linux-x64-\$required\.tgz/);assert.match(selector,/openssl dgst -sha512/);
  for(const file of ['.github/workflows/ci.yml','.github/workflows/deploy-cloudflare.yml'])assert.match(await readFile(file,'utf8'),/api\.github\.com\/repos\/\$GITHUB_REPOSITORY\/tarball\/\$GITHUB_SHA/);
 });
 test('only application-specific GitHub Actions workflows are active',async()=>{

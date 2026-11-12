@@ -35,7 +35,7 @@ jobs:
             --header "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/tarball/$GITHUB_SHA" \
             --output "$archive"
-      - name: Select a compatible runner-cached Node.js
+      - name: Select or bootstrap the required Node.js runtime
         shell: bash
         run: bash .github/scripts/select-node.sh
       - run: npm ci

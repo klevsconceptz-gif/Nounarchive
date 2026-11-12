@@ -43,17 +43,24 @@ if [[ -z "$selected" ]] && command -v node >/dev/null 2>&1; then
 fi
 
 if [[ -z "$selected" ]]; then
-  npm_cmd="$(command -v npm || true)"
-  if [[ -z "$npm_cmd" ]]; then
-    echo "::error::No compatible Node.js was cached, and npm is not available to bootstrap one."
+  case "$required" in
+    22.22.3) expected_integrity='sha512-L57AfRf8K3F0na3lGYXYrBGO/pafgDrswNE8hjuMCyqYcxXrm0UepJBaCLP8PyjfnDoJGyIIf1oU0UTASOEpZg==' ;;
+    *) echo "::error::No verified npm runtime archive is configured for Node.js $required."; exit 1 ;;
+  esac
+  runtime_dir="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/nounarchive-node-runtime"
+  archive="$runtime_dir/node-linux-x64-$required.tgz"
+  mkdir -p "$runtime_dir"
+  echo "Node.js $required is not cached; downloading its integrity-pinned Linux x64 runtime from npm."
+  curl --fail --silent --show-error --location "https://registry.npmjs.org/node-linux-x64/-/node-linux-x64-$required.tgz" --output "$archive"
+  actual_integrity="sha512-$(openssl dgst -sha512 -binary "$archive" | base64 -w0)"
+  if [[ "$actual_integrity" != "$expected_integrity" ]]; then
+    echo "::error::The downloaded Node.js archive failed its SHA-512 integrity check."
     exit 1
   fi
-  runtime_dir="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/nounarchive-node-runtime"
-  echo "Node.js $required is not cached; installing the exact Linux x64 runtime from npm."
-  "$npm_cmd" install --prefix "$runtime_dir" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "node-linux-x64@$required"
-  selected="$runtime_dir/node_modules/node-linux-x64/bin/node"
+  tar -xzf "$archive" --no-same-owner --no-same-permissions -C "$runtime_dir"
+  selected="$runtime_dir/package/bin/node"
   if [[ ! -x "$selected" ]]; then
-    echo "::error::The Node.js runtime package did not provide an executable."
+    echo "::error::The verified Node.js runtime archive did not provide an executable."
     exit 1
   fi
   selected_version="$("$selected" -p 'process.versions.node')"
