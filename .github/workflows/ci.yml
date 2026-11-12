@@ -25,8 +25,13 @@ jobs:
             --output "$archive"
       - name: Select or bootstrap the required Node.js runtime
         shell: bash
-        run: bash .github/scripts/select-node.sh
+        working-directory: ${{ github.workspace }}
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/select-node.sh"
       - run: npm ci
+        working-directory: ${{ github.workspace }}
       - run: npm run cf:db:local
+        working-directory: ${{ github.workspace }}
       - run: npm test
+        working-directory: ${{ github.workspace }}
       - run: npm audit --omit=dev --audit-level=high
+        working-directory: ${{ github.workspace }}

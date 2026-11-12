@@ -7,12 +7,14 @@ test('GitHub workflows parse and production deployment is restricted to main',as
  const deploy=parse(await readFile('.github/workflows/deploy-cloudflare.yml','utf8'));
  assert.ok(ci.on.pull_request!==undefined);
  assert.deepEqual(ci.on.push.branches,['main']);
+ for(const step of ci.jobs.test.steps.slice(1))assert.equal(step['working-directory'],'${{ github.workspace }}');
  assert.ok(deploy.on.workflow_dispatch);
  assert.deepEqual(deploy.on.push.branches,['main']);
  assert.equal(deploy.jobs.deploy.if,"github.ref == 'refs/heads/main'");
  assert.equal(deploy.jobs.deploy.steps[0].name,'Fetch source archive at the event commit');
  assert.match(deploy.jobs.deploy.steps[0].run,/GITHUB_SHA/);
  assert.equal(deploy.jobs.deploy.steps[1].name,'Select or bootstrap the required Node.js runtime');
+ for(const step of deploy.jobs.deploy.steps.slice(1))if(step.run)assert.equal(step['working-directory'],'${{ github.workspace }}');
  assert.equal(deploy.jobs.deploy.environment,'production');
  assert.equal(deploy.concurrency['cancel-in-progress'],false);
  assert.equal(deploy.permissions.contents,'read');
