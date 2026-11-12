@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -eEuo pipefail
-trap 'status=$?; printf "::error title=Node runtime bootstrap::Command failed (exit %s): %s\\n" "$status" "$BASH_COMMAND"; exit "$status"' ERR
+trap 'status=$?; echo "::error title=Node runtime bootstrap::Command failed (exit $status): $BASH_COMMAND"; exit "$status"' ERR
 
 required="$(tr -d '\r\n' < .nvmrc)"
 if [[ ! "$required" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
