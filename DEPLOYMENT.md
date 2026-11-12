@@ -165,7 +165,7 @@ The deployment workflow runs automatically after changes merge into `main`, depl
 
 ## GitHub Actions ownership policy
 
-The supported CI and deployment workflows intentionally use **no `uses:` action references**. They fetch the exact event commit as a GitHub API source archive using the workflow's read-only `github.token`, then select a compatible Node.js version already in the runner tool cache. This avoids third-party action ownership requirements without weakening the repository's action policy. The manual deployment trigger uses the runner's preinstalled GitHub CLI.
+The supported CI and deployment workflows intentionally use **no `uses:` action references**. They fetch the exact event commit as a GitHub API source archive using the workflow's read-only `github.token`, then use a compatible Node.js version from the runner tool cache or bootstrap the exact `.nvmrc` Linux x64 runtime from npm when no suitable version is cached. This avoids third-party action ownership requirements without weakening the repository's action policy. The manual deployment trigger uses the runner's preinstalled GitHub CLI.
 
 If actions are added later, they must come from a repository owned by `klevsconceptz-gif` and be pinned to a full 40-character commit SHA. Do not reintroduce external `actions/checkout` or `actions/setup-node` references unless the repository/organization policy is changed to allow them.
 

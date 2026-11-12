@@ -43,13 +43,29 @@ if [[ -z "$selected" ]] && command -v node >/dev/null 2>&1; then
 fi
 
 if [[ -z "$selected" ]]; then
-  echo "::error::Node.js $required or newer is not available in the runner tool cache."
-  exit 1
+  npm_cmd="$(command -v npm || true)"
+  if [[ -z "$npm_cmd" ]]; then
+    echo "::error::No compatible Node.js was cached, and npm is not available to bootstrap one."
+    exit 1
+  fi
+  runtime_dir="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/nounarchive-node-runtime"
+  echo "Node.js $required is not cached; installing the exact Linux x64 runtime from npm."
+  "$npm_cmd" install --prefix "$runtime_dir" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund "node-linux-x64@$required"
+  selected="$runtime_dir/node_modules/node-linux-x64/bin/node"
+  if [[ ! -x "$selected" ]]; then
+    echo "::error::The Node.js runtime package did not provide an executable."
+    exit 1
+  fi
+  selected_version="$("$selected" -p 'process.versions.node')"
+  if [[ "$selected_version" != "$required" ]]; then
+    echo "::error::The downloaded Node.js version does not match .nvmrc."
+    exit 1
+  fi
 fi
 
 node_bin="$(dirname "$selected")"
-if [[ ! -x "$node_bin/npm" ]]; then
-  echo "::error::The cached Node.js distribution does not include npm."
+if [[ ! -x "$node_bin/npm" ]] && ! command -v npm >/dev/null 2>&1; then
+  echo "::error::npm is not available alongside the selected Node.js runtime."
   exit 1
 fi
 printf '%s\n' "$node_bin" >> "$GITHUB_PATH"
