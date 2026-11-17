@@ -27,6 +27,12 @@
       "migrations_dir": "cloudflare/migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "CONTENT",
+      "bucket_name": "nounarchive"
+    }
+  ],
   "triggers": {
     "crons": [
       "0 0 * * *"
@@ -40,12 +46,15 @@
       "enabled": true,
       "head_sampling_rate": 1,
       "invocation_logs": true,
-      "persist": false
+      "persist": true
     },
     "traces": {
       "enabled": false,
       "head_sampling_rate": 1,
       "persist": true
+    },
+    "issues": {
+      "enabled": true
     }
   }
 }

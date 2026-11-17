@@ -19,5 +19,30 @@
       "database_id": "3e02672a-331a-4624-8256-21f7432e232b",
       "migrations_dir": "cloudflare/migrations"
     }
-  ]
+  ],
+  "r2_buckets": [
+    {
+      "binding": "CONTENT",
+      "bucket_name": "nounarchive"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "redact_query_string": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+      "persist": true
+    },
+    "traces": {
+      "enabled": false,
+      "head_sampling_rate": 1,
+      "persist": true
+    },
+    "issues": {
+      "enabled": true
+    }
+  }
 }

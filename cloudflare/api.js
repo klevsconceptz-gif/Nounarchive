@@ -7,6 +7,8 @@ import {mergeArticle} from '../news-sync.js';
 import seed from '../data/seed.json';
 import resourceSeed from '../public/resources.json';
 import {digest,randomToken,verifyPassword} from './security.js';
+import {syncContentMirror} from './content-mirror.js';
+import {encryptStudentResult,decryptStudentResult,validResultBatch,validResultChunk,resultLimits,createResultBatchId} from './private-results.js';
 import {HASH_PATTERN,CLAIM_RESET_SQL,SAVE_RESET_SQL,checkRecoveryToken,validNewPassword,makePasswordHash} from '../admin-recovery.js';
 export const api=new Hono();
 const publicSource={id:'nounarchive',name:'Nounarchive',url:'/'};
@@ -60,8 +62,8 @@ api.use('*',async(c,next)=>{
  if(!c.env.DB&&!['/api/archive','/api/resources'].includes(c.req.path))return c.json({error:'D1 database binding is not configured.'},503);
  await next();
 });
-api.use('*',bodyLimit({maxSize:100*1024,onError:c=>c.json({error:'Request too large.'},413)}));
-const requiredD1Tables=['articles','source_status','posts','admin_sessions','login_attempts','admin_credentials','admin_reset_tokens','resources','resource_status'];
+api.use('*',bodyLimit({maxSize:1_000_000,onError:c=>c.json({error:'Request too large.'},413)}));
+const requiredD1Tables=['articles','source_status','posts','admin_sessions','login_attempts','admin_credentials','admin_reset_tokens','resources','resource_status','mirror_crawl_queue','mirror_documents','mirror_assets','mirror_crawl_state','private_student_result_batches','private_student_results'];
 api.get('/api/health',async c=>{
  try{
   const {results=[]}=await c.env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
@@ -120,6 +122,45 @@ api.get('/api/resources',async c=>{
  const lastSuccess=Object.values(status).filter(result=>result?.state==='ok'&&result.lastSuccess).map(result=>result.lastSuccess).sort().at(-1)||null;
  return c.json({items,status,lastSuccess,refreshMinutes:1440});
 });
+function publicMirrorMetadata(value){
+ try{const metadata=JSON.parse(value||'{}');return {category:typeof metadata.category==='string'?metadata.category:'Student information',author:typeof metadata.author==='string'?metadata.author:'',section:typeof metadata.section==='string'?metadata.section:'',language:typeof metadata.language==='string'?metadata.language:'',tags:Array.isArray(metadata.tags)?metadata.tags.filter(item=>typeof item==='string').slice(0,30):[],keywords:Array.isArray(metadata.keywords)?metadata.keywords.filter(item=>typeof item==='string').slice(0,30):[],headings:Array.isArray(metadata.headings)?metadata.headings.filter(item=>typeof item==='string').slice(0,80):[]};}
+ catch{return {category:'Student information',author:'',section:'',language:'',tags:[],keywords:[],headings:[]};}
+}
+api.get('/api/content',async c=>{
+ const rawQuery=(c.req.query('q')||'').trim();
+ if(rawQuery.length>160)return c.json({error:'Search text must be 160 characters or fewer.'},400);
+ const limitValue=Number(c.req.query('limit')||24),offsetValue=Number(c.req.query('offset')||0);
+ const limit=Number.isInteger(limitValue)?Math.min(50,Math.max(1,limitValue)):24;
+ const offset=Number.isSafeInteger(offsetValue)?Math.min(1000000,Math.max(0,offsetValue)):0;
+ const rawCategory=(c.req.query('category')||'').trim().slice(0,80);
+ const allowedCategories=new Set(['Study materials','Admissions','Academics','News & notices','Student information']);
+ const conditions=[],params=[];
+ if(rawQuery){const like='%'+rawQuery.toLowerCase().replace(/[\\%_]/g,'')+'%';conditions.push('(LOWER(d.title) LIKE ? OR LOWER(d.description) LIKE ? OR LOWER(d.content_text) LIKE ? OR LOWER(d.metadata) LIKE ?)');params.push(like,like,like,like);}
+ if(allowedCategories.has(rawCategory)){conditions.push("json_extract(d.metadata,'$.category')=?");params.push(rawCategory);}
+ const filter=conditions.length?'WHERE '+conditions.join(' AND '):'';
+ params.push(limit+1,offset);
+ const rows=await records(c.env,`SELECT d.id,d.title,d.description,d.content_type,d.source_published_at,d.source_modified_at,d.metadata,substr(d.content_text,1,360) AS excerpt,
+  (SELECT count(*) FROM mirror_assets a WHERE a.document_id=d.id) AS asset_count FROM mirror_documents d ${filter}
+  ORDER BY COALESCE(d.source_published_at,d.source_modified_at,d.last_seen_at) DESC,d.id LIMIT ? OFFSET ?`,...params);
+ const hasMore=rows.length>limit,items=rows.slice(0,limit).map(row=>({id:row.id,title:row.title,description:row.description,excerpt:row.excerpt,contentType:row.content_type,publishedAt:row.source_published_at,modifiedAt:row.source_modified_at,assetCount:row.asset_count,metadata:publicMirrorMetadata(row.metadata)}));
+ return c.json({items,query:rawQuery,category:allowedCategories.has(rawCategory)?rawCategory:'',offset,limit,nextOffset:hasMore?offset+limit:null,hasMore});
+});
+api.get('/api/content/assets/:id',async c=>{
+ const id=c.req.param('id');if(!/^[a-f0-9]{32}$/i.test(id))return c.json({error:'This file is unavailable.'},404);
+ const asset=await statement(c.env,'SELECT object_key,file_name,content_type FROM mirror_assets WHERE id=?',id).first();
+ if(!asset||!c.env.CONTENT)return c.json({error:'This file is unavailable.'},404);
+ const object=await c.env.CONTENT.get(asset.object_key);if(!object)return c.json({error:'This file is unavailable.'},404);
+ const name=String(asset.file_name||'study-resource').replace(/[\\\r\n"<>]/g,'_');
+ const fallbackName=name.replace(/[^A-Za-z0-9._ -]/g,'_').slice(0,180)||'study-resource';
+ return new Response(object.body,{headers:{'Content-Type':'application/octet-stream','Content-Disposition':`attachment; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(name)}`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, max-age=0, no-store'}});
+});
+api.get('/api/content/:id',async c=>{
+ const id=c.req.param('id');if(!/^[a-f0-9]{32}$/i.test(id))return c.json({error:'This document is unavailable.'},404);
+ const row=await statement(c.env,'SELECT id,title,description,content_text,content_type,source_published_at,source_modified_at,metadata FROM mirror_documents WHERE id=?',id).first();
+ if(!row)return c.json({error:'This document is unavailable.'},404);
+ const assets=await records(c.env,'SELECT id,file_name,content_type,byte_size FROM mirror_assets WHERE document_id=? ORDER BY file_name,id',id);
+ return c.json({id:row.id,title:row.title,description:row.description,content:row.content_text,contentType:row.content_type,publishedAt:row.source_published_at,modifiedAt:row.source_modified_at,metadata:publicMirrorMetadata(row.metadata),assets:assets.map(asset=>({id:asset.id,fileName:asset.file_name,contentType:asset.content_type,byteSize:asset.byte_size,downloadUrl:'/api/content/assets/'+asset.id}))});
+});
 api.get('/api/posts/:id',async c=>{
  const row=await statement(c.env,"SELECT data FROM posts WHERE id=? AND status='published'",c.req.param('id')).first();return row?c.json(JSON.parse(row.data)):c.json({error:'This post is unavailable.'},404);
 });
@@ -162,6 +203,52 @@ api.use('/api/admin/*',async(c,next)=>{
 });
 api.get('/api/admin/session',c=>c.json({csrf:c.get('session').csrf}));
 api.post('/api/admin/logout',async c=>{await statement(c.env,'DELETE FROM admin_sessions WHERE token_hash=?',c.get('tokenHash')).run();deleteCookie(c,'nounarchive_admin',{path:'/api/admin'});return c.json({ok:true});});
+api.get('/api/admin/student-results/batches',async c=>{
+ const batches=await records(c.env,'SELECT id,source_format,total_records,imported_records,created_at,updated_at FROM private_student_result_batches ORDER BY created_at DESC LIMIT 100');
+ return c.json({batches});
+});
+api.post('/api/admin/student-results/batches',async c=>{
+ const body=await c.req.json().catch(()=>null);if(!validResultBatch(body))return c.json({error:'Choose CSV or JSON and provide between 1 and 1,000,000 result rows.'},400);
+ try{await encryptStudentResult({},'encryption-check',0,c.env);}catch(error){return c.json({error:error.message},503);}
+ const id=createResultBatchId(),now=new Date().toISOString();
+ await statement(c.env,'INSERT INTO private_student_result_batches(id,source_format,total_records,imported_records,created_at,updated_at) VALUES(?,?,?,0,?,?)',id,body.format,body.totalRecords,now,now).run();
+ return c.json({batchId:id,totalRecords:body.totalRecords,limits:resultLimits()},201);
+});
+api.post('/api/admin/student-results/batches/:batchId/import',async c=>{
+ const batchId=c.req.param('batchId');if(!/^[a-f0-9]{32}$/.test(batchId))return c.json({error:'Import batch not found.'},404);
+ const batch=await statement(c.env,'SELECT id,total_records,imported_records FROM private_student_result_batches WHERE id=?',batchId).first();
+ if(!batch)return c.json({error:'Import batch not found.'},404);
+ const body=await c.req.json().catch(()=>null);
+ if(!validResultChunk(body,batch.total_records))return c.json({error:`Send 1–${resultLimits().maxChunkRecords} valid result rows with an in-range offset. Each row must be ${resultLimits().maxRecordBytes} bytes or smaller.`},400);
+ const now=new Date().toISOString(),writes=[];
+ try{
+  for(let index=0;index<body.records.length;index++){
+   const rowIndex=body.offset+index,encrypted=await encryptStudentResult(body.records[index],batchId,rowIndex,c.env);
+   writes.push(statement(c.env,`INSERT INTO private_student_results(id,batch_id,row_index,ciphertext,iv,created_at) VALUES(?,?,?,?,?,?)
+    ON CONFLICT(batch_id,row_index) DO UPDATE SET id=excluded.id,ciphertext=excluded.ciphertext,iv=excluded.iv,created_at=excluded.created_at`,encrypted.id,batchId,rowIndex,encrypted.ciphertext,encrypted.iv,now));
+  }
+ }catch(error){return c.json({error:error.message||'Unable to encrypt result rows.'},400);}
+ writes.push(statement(c.env,'UPDATE private_student_result_batches SET imported_records=(SELECT count(*) FROM private_student_results WHERE batch_id=?),updated_at=? WHERE id=?',batchId,now,batchId));
+ await c.env.DB.batch(writes);
+ const updated=await statement(c.env,'SELECT imported_records,total_records FROM private_student_result_batches WHERE id=?',batchId).first();
+ return c.json({batchId,importedRecords:updated.imported_records,totalRecords:updated.total_records,complete:updated.imported_records===updated.total_records});
+});
+api.get('/api/admin/student-results/batches/:batchId',async c=>{
+ const batchId=c.req.param('batchId');if(!/^[a-f0-9]{32}$/.test(batchId))return c.json({error:'Import batch not found.'},404);
+ const batch=await statement(c.env,'SELECT id,source_format,total_records,imported_records,created_at,updated_at FROM private_student_result_batches WHERE id=?',batchId).first();
+ if(!batch)return c.json({error:'Import batch not found.'},404);
+ const limitValue=Number(c.req.query('limit')||50),offsetValue=Number(c.req.query('offset')||0),limit=Number.isInteger(limitValue)?Math.min(100,Math.max(1,limitValue)):50,offset=Number.isSafeInteger(offsetValue)?Math.min(batch.total_records,Math.max(0,offsetValue)):0;
+ const rows=await records(c.env,'SELECT id,batch_id,row_index,ciphertext,iv FROM private_student_results WHERE batch_id=? ORDER BY row_index LIMIT ? OFFSET ?',batchId,limit,offset),items=[];
+ try{for(const row of rows)items.push({rowIndex:row.row_index,data:await decryptStudentResult(row,c.env)});}
+ catch(error){return c.json({error:error.message||'Private results are unavailable.'},503);}
+ return c.json({batch,items,offset,limit,nextOffset:offset+items.length<batch.imported_records?offset+items.length:null});
+});
+api.delete('/api/admin/student-results/batches/:batchId',async c=>{
+ const batchId=c.req.param('batchId');if(!/^[a-f0-9]{32}$/.test(batchId))return c.json({error:'Import batch not found.'},404);
+ const existing=await statement(c.env,'SELECT id FROM private_student_result_batches WHERE id=?',batchId).first();if(!existing)return c.json({error:'Import batch not found.'},404);
+ await c.env.DB.batch([statement(c.env,'DELETE FROM private_student_results WHERE batch_id=?',batchId),statement(c.env,'DELETE FROM private_student_result_batches WHERE id=?',batchId)]);
+ return c.json({ok:true});
+});
 api.get('/api/admin/posts',async c=>c.json((await records(c.env,'SELECT data FROM posts ORDER BY updated_at DESC')).map(r=>JSON.parse(r.data))));
 async function savePost(c,editing){
  let fields;try{fields=validatePost(await c.req.json());}catch(e){return c.json({error:e.message},400);}
@@ -255,7 +342,8 @@ export async function syncSources(env){
  // every write remains scoped to its own source and existing records are kept.
  await Promise.all([
   ...sources.map(source=>syncNewsSource(env,source)),
-  ...resourceSources.map(source=>syncResourceSource(env,source))
+  ...resourceSources.map(source=>syncResourceSource(env,source)),
+  syncContentMirror(env)
  ]);
  if(env.DB)try{
   await env.DB.batch([

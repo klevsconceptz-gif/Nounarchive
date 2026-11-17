@@ -20,6 +20,8 @@ for(const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','di
   for(const file of ['0001_initial.sql','0002_admin_recovery.sql'])for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(s=>s.trim()).filter(Boolean))await (await mf.getD1Database('DB')).prepare(sql).run();
   response=await health();assert.equal(response.status,503);
   for(const sql of (await readFile('cloudflare/migrations/0003_resources.sql','utf8')).split(';').map(s=>s.trim()).filter(Boolean))await (await mf.getD1Database('DB')).prepare(sql).run();
+  response=await health();assert.equal(response.status,503);
+  for(const sql of (await readFile('cloudflare/migrations/0004_content_mirror.sql','utf8')).split(';').map(s=>s.trim()).filter(Boolean))await (await mf.getD1Database('DB')).prepare(sql).run();
   response=await health();assert.equal(response.status,200);assert.deepEqual(await response.json(),{ok:true,database:'d1'});
  }finally{await mf.dispose();}
 });
@@ -118,7 +120,7 @@ for (const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','d
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath,compatibilityDate:'2026-10-30',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{ADMIN_PASSWORD_HASH:hash}}));
  try{
  const db=await mf.getD1Database('DB');
- const sql=(await Promise.all(['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql'].map(name=>readFile('cloudflare/migrations/'+name,'utf8')))).join('\n');
+ const sql=(await Promise.all(['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql','0004_content_mirror.sql'].map(name=>readFile('cloudflare/migrations/'+name,'utf8')))).join('\n');
  for(const statement of sql.split(';').map(s=>s.trim()).filter(Boolean))await db.prepare(statement).run();
  let cookie='',csrf='';
  const request=(path,method='GET',body,token=csrf)=>mf.dispatchFetch('https://nounarchive.test/api'+path,{method,headers:{'Content-Type':'application/json','CF-Connecting-IP':'192.0.2.1','X-Nounarchive-Admin':'1','X-CSRF-Token':token,Cookie:cookie},...(body?{body:JSON.stringify(body)}:{})});
@@ -148,7 +150,7 @@ for(const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','di
  const hash=`pbkdf2-sha256$100000$${salt}$${await passwordKey(password,salt)}`;
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath,compatibilityDate:'2026-10-30',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{ADMIN_PASSWORD_HASH:hash,ADMIN_RESET_TOKEN_HASH:`${Date.now()+900000}$${await digest(token)}`}}));
  try{
- const db=await mf.getD1Database('DB');for(const file of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql'])for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(s=>s.trim()).filter(Boolean))await db.prepare(sql).run();
+ const db=await mf.getD1Database('DB');for(const file of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql','0004_content_mirror.sql'])for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(s=>s.trim()).filter(Boolean))await db.prepare(sql).run();
  const request=(path,body,cookie='',admin='1')=>mf.dispatchFetch('https://nounarchive.test/api/admin'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','CF-Connecting-IP':'192.0.2.3','X-Nounarchive-Admin':admin,Cookie:cookie},...(body?{body:JSON.stringify(body)}:{})});
  const login=await request('/login',{password});assert.equal(login.status,200);const cookie=login.headers.get('set-cookie').split(';')[0];
  assert.equal((await request('/password-reset',{token,newPassword},'','0')).status,403);
@@ -170,7 +172,7 @@ for(const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','di
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath,compatibilityDate:'2026-10-30',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{ADMIN_RESET_TOKEN_HASH:`${Date.now()+900000}$${await digest(token)}`}}));
  try{
   const db=await mf.getD1Database('DB');
-  for(const file of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql'])for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(s=>s.trim()).filter(Boolean))await db.prepare(sql).run();
+  for(const file of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql','0004_content_mirror.sql'])for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(s=>s.trim()).filter(Boolean))await db.prepare(sql).run();
   const request=body=>mf.dispatchFetch('https://nounarchive.test/api/admin/password-reset',{method:'POST',headers:{'Content-Type':'application/json','CF-Connecting-IP':'192.0.2.4','X-Nounarchive-Admin':'1'},body:JSON.stringify(body)});
   for(let i=0;i<2;i++)assert.equal((await request({token:randomToken(),newPassword})).status,400);
   assert.equal((await request({token,newPassword})).status,200);
@@ -185,7 +187,7 @@ for(const [label,scriptPath] of [['Worker','dist/worker/worker.js'],['Pages','di
  const {digest}=await import('../security.js');const token=randomToken();
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath,compatibilityDate:'2026-10-30',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{ADMIN_RESET_TOKEN_HASH:`${Date.now()+900000}$${await digest(token)}`}}));
  try{
- const db=await mf.getD1Database('DB');for(const file of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql'])for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(s=>s.trim()).filter(Boolean))await db.prepare(sql).run();
+ const db=await mf.getD1Database('DB');for(const file of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql','0004_content_mirror.sql'])for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(s=>s.trim()).filter(Boolean))await db.prepare(sql).run();
  const post=(path,body)=>mf.dispatchFetch('https://nounarchive.test/api/admin'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Nounarchive-Admin':'1'},body:JSON.stringify(body)});
  assert.equal((await post('/login',{password:'not-configured-password'})).status,503);
  assert.equal((await post('/password-reset',{token:'',newPassword:'new-bootstrap-password'})).status,400);

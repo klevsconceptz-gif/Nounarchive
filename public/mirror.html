@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Search locally archived NOUN study information, notices, course materials and past questions.">
+  <meta name="theme-color" content="#EAF4FF">
+  <title>Content archive · Nounarchive</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/mirror.css">
+  <script src="/mirror.js" defer></script>
+</head>
+<body class="mirror-page">
+  <a class="skip-link" href="#mirror-main">Skip to archive</a>
+  <header class="mirror-header">
+    <a class="brand" href="/" aria-label="Nounarchive home"><span class="logo">n<span>↗</span></span>nounarchive<span class="brand-dot">.</span></a>
+    <nav aria-label="Main navigation">
+      <a href="/#feed">Latest news</a>
+      <a href="/resources.html">Student resources</a>
+      <a class="active" aria-current="page" href="/mirror.html">Content archive</a>
+    </nav>
+  </header>
+  <main id="mirror-main" class="mirror-main">
+    <section class="mirror-intro" id="mirror-intro">
+      <div class="eyebrow">THE NOUNARCHIVE COLLECTION</div>
+      <h1>Find the information<br>you came for.</h1>
+      <p>Search local study materials, academic information, notices and student guides.</p>
+      <form id="mirror-search" class="mirror-search" role="search">
+        <label class="sr-only" for="mirror-query">Search the content archive</label>
+        <span aria-hidden="true">⌕</span>
+        <input id="mirror-query" type="search" maxlength="160" placeholder="Search courses, questions, notices…">
+        <button type="submit">Search <span aria-hidden="true">→</span></button>
+      </form>
+    </section>
+    <section id="mirror-browser" class="mirror-browser" aria-label="Search results">
+      <div class="mirror-filters">
+        <label for="mirror-category">Content type</label>
+        <select id="mirror-category">
+          <option value="">All content</option>
+          <option>Study materials</option>
+          <option>Admissions</option>
+          <option>Academics</option>
+          <option>News & notices</option>
+          <option>Student information</option>
+        </select>
+      </div>
+      <div class="mirror-result-head"><p id="mirror-count" role="status">Loading the collection…</p><button id="mirror-clear" type="button" hidden>Clear filters</button></div>
+      <div id="mirror-results" class="mirror-results" aria-live="polite"></div>
+      <button id="mirror-more" class="mirror-more" type="button" hidden>Show more</button>
+    </section>
+    <article id="mirror-detail" class="mirror-detail" hidden>
+      <a class="mirror-back" href="/mirror.html">← Back to the collection</a>
+      <p class="mirror-category" id="detail-category"></p>
+      <h1 id="detail-title"></h1>
+      <p id="detail-description" class="mirror-description"></p>
+      <div id="detail-meta" class="mirror-meta"></div>
+      <section id="detail-assets" class="mirror-assets" hidden>
+        <h2>Files in this collection</h2>
+        <div id="detail-asset-list"></div>
+      </section>
+      <div id="detail-content" class="mirror-content"></div>
+    </article>
+  </main>
+  <footer class="mirror-footer"><a class="brand" href="/">nounarchive.</a><p>Search and use the local collection.</p><a href="/resources.html">Explore student resources →</a></footer>
+</body>
+</html>
