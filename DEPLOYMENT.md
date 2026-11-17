@@ -1,6 +1,6 @@
 # Nounarchive: GitHub → Cloudflare deployment checklist
 
-**Recommended:** one Cloudflare Worker serves the complete site and API. Cloudflare KV stores the refreshed news and resource snapshots for public reads; D1 remains the durable mirror and stores posts, admin credentials, sessions, and throttles. A daily Cron Trigger refreshes news and tools. Pages is also supported, using a separate scheduler Worker. Choose **one** web target; do not enable two collectors against the same database and KV namespace.
+**Recommended:** one Cloudflare Worker serves the complete site and API. KV stores refreshed news and resource snapshots; D1 stores searchable mirrored page text/metadata, the crawl queue, posts, admin sessions, and encrypted restricted student results; R2 stores large course-material and past-question files. A daily Cron Trigger refreshes the collection. Pages is also supported, using a separate scheduler Worker. Choose **one** web target; do not enable two collectors against the same D1, KV namespace, or R2 bucket.
 
 No remote D1 instance or production deployment is created by this guide. All remote commands require your authorized Cloudflare account. Keep passwords and API tokens in secret settings, not chat or Git.
 
@@ -45,12 +45,16 @@ npm run cf:db:remote
 
 `cf:configure` updates the D1 `DB` binding in all three Cloudflare configurations. The ID is not a password. Remote scripts deliberately refuse to deploy while an ID is unset.
 
-The supplied Cloudflare KV namespace is configured in all three files as the lowercase `kv` binding (`d54d022f45014955a5c21a5024ac5720`). This is an identifier, not a secret; confirm that the namespace exists in the Cloudflare account used for deployment. Public archive and resource reads prefer per-source KV snapshots and merge D1 rows as a fallback. The daily collector writes KV first and mirrors to D1 when D1 is available, so scheduled news/resource refreshes and public reads can continue during a D1 outage. D1 remains necessary for admin, posts, sessions, and throttling.
+The supplied Cloudflare KV namespace is configured in all three files as the lowercase `kv` binding (`d54d022f45014955a5c21a5024ac5720`). This is an identifier, not a secret; confirm that the namespace exists in the Cloudflare account used for deployment. Public news/resource reads prefer per-source KV snapshots and merge D1 rows as a fallback. The daily collector writes KV first and mirrors to D1 when D1 is available.
+
+The chosen R2 bucket name `nounarchive` is configured as the private `CONTENT` binding in all three Wrangler targets. Create it in the same Cloudflare account before deployment (for example, `npx wrangler r2 bucket create nounarchive`). No public bucket URL is configured; file downloads use same-origin Nounarchive routes. R2 is used for mirrored files, while searchable page text and metadata live in D1.
 
 The checked-in migrations create:
 
 - `articles` and `source_status` — imported news and provider health
 - `resources` and `resource_status` — discovered directory records and provider health
+- `mirror_crawl_queue`, `mirror_documents`, `mirror_assets`, and `mirror_crawl_state` — searchable local page text/metadata and incremental crawl state; original URLs remain internal metadata
+- `private_student_result_batches` and `private_student_results` — authenticated-only result imports, encrypted before persistence
 - `posts` — original draft/published admin updates
 - `admin_sessions` and `login_attempts` — persistent sessions and rate-limit records
 - `admin_credentials` and `admin_reset_tokens` — durable password overrides and single-use recovery-token claims
@@ -77,11 +81,12 @@ Add these **environment secrets**:
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | Scoped Cloudflare deployment token |
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID from the Cloudflare dashboard |
-| `CLOUDFLARE_ADMIN_PASSWORD_HASH` | Complete generated hash, without surrounding quotes |
+| `Admin_password_hash` (preferred) | Complete generated hash, without surrounding quotes; legacy `CLOUDFLARE_ADMIN_PASSWORD_HASH` remains a fallback |
+| `STUDENT_RESULTS_ENCRYPTION_KEY` | 32-byte base64url key from `npm run results:key`; required before importing private results |
 
 Optionally add the **environment variable** `D1_DATABASE_ID` to override the IDs in the checked-in Wrangler configs. If omitted, the deployment workflow validates and uses the configured UUIDs. Dashboard-connected Workers Builds still require their own `D1_DATABASE_ID` build variable.
 
-Scope the Cloudflare token to the account and the capabilities required: **D1 Edit** (migration/export), **Workers Scripts Edit** (Worker, scheduler and secrets), **Workers KV Storage Edit** (bind and refresh the news/resource namespace), and **Cloudflare Pages Edit** if deploying Pages. Some Wrangler discovery operations may also require account/membership read access. Do not use a global API key. Add domain/zone permissions only if you automate custom-domain changes.
+Scope the Cloudflare token to the account and the capabilities required: **D1 Edit** (migration/export), **Workers Scripts Edit** (Worker, scheduler and secrets), **Workers KV Storage Edit** (bind and refresh the news/resource namespace), **R2 Storage Edit** (store mirrored files), and **Cloudflare Pages Edit** if deploying Pages. Some Wrangler discovery operations may also require account/membership read access. Do not use a global API key. Add domain/zone permissions only if you automate custom-domain changes.
 
 Do not add any of these secrets to browser JavaScript or `.env.example`. The workflow checks configuration without printing secret values, tests before deployment, exports a D1 backup to its temporary runner, applies migrations, and deploys the selected target. It serializes production jobs and does not cancel migrations in flight. The runner backup is **not** a durable backup; keep a separate D1 export/Cloudflare recovery policy for production.
 
@@ -93,6 +98,9 @@ Do not add any of these secrets to browser JavaScript or `.env.example`. The wor
 npm run cf:deploy
 npx wrangler secret put ADMIN_PASSWORD_HASH
 # At the secret prompt, paste the generated hash, not your password.
+npm run results:key
+# Store the generated value privately, then set the separate encryption secret:
+npx wrangler secret put STUDENT_RESULTS_ENCRYPTION_KEY
 ```
 
 The resulting Worker includes the site, APIs and daily collection. Wrangler reports the live URL. No separate scheduler is needed.
@@ -104,6 +112,8 @@ Create the Pages project once:
 ```bash
 npx wrangler pages project create nounarchive --production-branch main
 npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name nounarchive
+npm run results:key
+npx wrangler pages secret put STUDENT_RESULTS_ENCRYPTION_KEY --project-name nounarchive
 npm run pages:deploy -- --branch main
 npm run cf:deploy:scheduler
 ```
@@ -144,13 +154,16 @@ This private export may include drafts. It preserves existing D1 rows, excludes 
 - `/api/archive` and `/api/resources` serve per-source KV snapshots first, merge any readable D1 records, and retain bundled seed data. They should remain available during a D1 outage.
 - `/` loads the feed and can search/filter updates.
 - `/admin.html` signs in with your chosen password.
+- `/mirror.html` searches mirrored page text/metadata; original source URLs remain internal database metadata, not public links.
+- The `/api/content/...` file downloads are same-origin routes backed by the private R2 bucket.
 - Save a draft: it must not appear in the public feed or direct public article API.
 - Publish it: it should appear in the feed and open as a full article.
 - Sign out: admin API access must return 401.
-- After the daily Cron Trigger runs, inspect source health and last-success times.
+- Generate `STUDENT_RESULTS_ENCRYPTION_KEY` once with `npm run results:key`, store it as a production secret, and keep a secure backup. Import the authorized CSV/JSON only through the signed-in `/admin.html` workspace; records are AES-GCM encrypted in D1, and no public search or API returns them.
+- After the daily Cron Trigger runs, confirm the mirror queue is progressing in D1/Cloudflare logs. It processes up to 30 pages and 8 files per provider per scheduled run; larger first-time archives continue over subsequent daily runs.
 - Add your custom domain and verify HTTPS and login cookies.
 
-External source ingestion, especially NOUN Update's dynamic listing, still needs live-host verification. A passing deployment health check does not imply all three sources are reachable. Choose a Cloudflare plan/CPU allowance appropriate for feed parsing and password hashing, and monitor Cron/Functions errors, KV usage and D1 usage.
+The content crawler follows HTTPS links and sitemaps only on each provider's own host, stores up to 120,000 extracted text characters per page, and mirrors approved document formats (PDF/Office/archive/text) into R2. Files with a valid `Content-Length` can be streamed up to 100 MB; responses without a valid length are read with a 20 MB hard limit. It excludes login/result-checker routes, skips pages with identifiable result tables, and does not follow external file hosts; those need an explicit reviewed allowlist rather than open crawling. The crawl is incremental: up to 30 pages and 8 files per provider are processed per scheduled run, with pending work preserved in D1 for later runs. External source ingestion, especially NOUN Update's dynamic listing, still needs live-host verification. A passing deployment health check does not imply all three sources are reachable. Choose a Cloudflare plan/CPU allowance appropriate for the crawl and password hashing, and monitor Cron/Functions errors, R2 usage and D1 usage.
 
 For architecture, local edge preview, backups and operational details, see [cloudflare/DEPLOYMENT.md](cloudflare/DEPLOYMENT.md).
 

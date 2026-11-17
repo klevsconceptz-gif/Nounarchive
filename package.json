@@ -19,6 +19,7 @@
     "cf:db:local": "wrangler d1 migrations apply nounarchive --local",
     "cf:db:remote": "node scripts/cf-configure.js --check && wrangler d1 migrations apply nounarchive --remote",
     "cf:admin-hash": "node scripts/cf-admin-hash.js",
+    "results:key": "node scripts/student-results-key.js",
     "pages:dev": "npm run pages:build && node scripts/pages-command.js dev",
     "pages:build": "wrangler pages functions build functions --outdir dist/pages --compatibility-date 2026-10-30 --compatibility-flags nodejs_compat && node scripts/pages-stage.js",
     "pages:deploy": "node scripts/cf-configure.js --check && npm run pages:build && node scripts/pages-command.js deploy",

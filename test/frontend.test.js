@@ -55,7 +55,7 @@ test('resource directory preserves records without outbound links and handles no
  }finally{dom.window.close();}
 });
 test('public pages omit admin links but the direct admin panel remains available',async()=>{
- for(const file of ['index.html','resources.html','post.html']){
+ for(const file of ['index.html','resources.html','post.html','mirror.html']){
  const dom=new JSDOM(await readFile('public/'+file,'utf8'));try{assert.equal(dom.window.document.querySelectorAll('a[href*="admin"]').length,0,file);}finally{dom.window.close();}
  }
  const dom=new JSDOM(await readFile('public/admin.html','utf8'));try{assert.ok(dom.window.document.getElementById('login-form'));assert.ok(dom.window.document.getElementById('post-form'));}finally{dom.window.close();}
@@ -86,9 +86,9 @@ test('landing page omits outbound links, publisher banners, badges and claims',a
 });
 
 test('student-platform theme is shared across pages with an original responsive hero graphic',async()=>{
- for(const name of ['index','resources','admin','post','tool','story']){
+ for(const name of ['index','resources','admin','post','tool','story','mirror']){
  const dom=new JSDOM(await readFile('public/'+name+'.html','utf8'));
- try{const d=dom.window.document;const sheets=[...d.querySelectorAll('link[rel="stylesheet"]')].map(link=>link.getAttribute('href'));assert.equal(sheets.at(-1),['resources','tool','story'].includes(name)?'/tools.css':'/platform.css');if(name==='index'){const img=d.querySelector('.intro-note img');assert.equal(img.getAttribute('src'),'/student-hub.svg');assert.ok(img.alt);assert.equal(d.querySelectorAll('.platform-actions a').length,2);}}finally{dom.window.close();}
+ try{const d=dom.window.document;const sheets=[...d.querySelectorAll('link[rel="stylesheet"]')].map(link=>link.getAttribute('href'));assert.equal(sheets.at(-1),name==='mirror'?'/mirror.css':['resources','tool','story'].includes(name)?'/tools.css':'/platform.css');if(name==='index'){const img=d.querySelector('.intro-note img');assert.equal(img.getAttribute('src'),'/student-hub.svg');assert.ok(img.alt);assert.equal(d.querySelectorAll('.platform-actions a').length,2);}}finally{dom.window.close();}
  }
  const svg=await readFile('public/student-hub.svg','utf8');assert.match(svg,/viewBox="0 0 620 460"/);assert.doesNotMatch(svg,/<script/i);
 });
@@ -182,7 +182,7 @@ test('resource directory accepts quick-access search and journey category parame
 
 
 test('all HTML pages use only same-origin navigation and no automatic redirects',async()=>{
- for(const file of ['index.html','resources.html','post.html','admin.html','tool.html','story.html']){
+ for(const file of ['index.html','resources.html','post.html','admin.html','tool.html','story.html','mirror.html']){
   const dom=new JSDOM(await readFile('public/'+file,'utf8'),{url:'https://nounarchive.test/'+file});
   try{
    const d=dom.window.document;
@@ -209,5 +209,45 @@ test('resource URLs cannot create external navigation or executable markup',asyn
   assert.equal(d.querySelectorAll('.resource-card [onclick]').length,0);
   for(const a of d.querySelectorAll('.resource-card a')){assert.match(a.getAttribute('href'),/^\/tool\.html\?id=/);assert.equal(new URL(a.href).origin,'https://nounarchive.test');}
   assert.doesNotMatch(d.body.textContent,/Private origin/);
+ }finally{dom.window.close();}
+});
+
+test('local content archive searches and opens full text with R2 files through internal routes',async()=>{
+ const id='a'.repeat(32),asset='b'.repeat(32);
+ const dom=new JSDOM(await readFile('public/mirror.html','utf8'),{url:'https://nounarchive.test/mirror.html',runScripts:'outside-only'});
+ try{
+  const w=dom.window,calls=[];
+  w.fetch=async url=>{
+   calls.push(String(url));
+   if(String(url).startsWith('/api/content?'))return {ok:true,json:async()=>({items:[{id,title:'Course materials and past questions',description:'A local study guide.',excerpt:'Searchable syllabus notes.',publishedAt:'2026-10-20T00:00:00Z',assetCount:1,metadata:{category:'Study materials'}}],hasMore:false,nextOffset:null})};
+   return {ok:true,json:async()=>({id,title:'Course materials and past questions',description:'A local study guide.',content:'Full study guide text. <script>must remain text only</script>',metadata:{category:'Study materials'},assets:[{id:asset,fileName:'past-question.pdf',contentType:'application/pdf',byteSize:1024,downloadUrl:'/api/content/assets/'+asset}]})};
+  };
+  w.eval(await readFile('public/mirror.js','utf8'));await new Promise(resolve=>setTimeout(resolve,15));
+  const d=w.document;assert.equal(d.querySelectorAll('.mirror-card').length,1);assert.equal(d.querySelector('.mirror-card h2').textContent,'Course materials and past questions');
+  assert.equal(d.querySelector('.mirror-card a').getAttribute('href'),'/mirror.html?id='+id);
+  d.getElementById('mirror-query').value='course';d.getElementById('mirror-search').dispatchEvent(new w.SubmitEvent('submit',{bubbles:true,cancelable:true}));await new Promise(resolve=>setTimeout(resolve,15));
+  assert.ok(calls.some(value=>value.includes('q=course')));
+  for(const link of d.querySelectorAll('a[href]'))assert.equal(new URL(link.href).origin,w.location.origin);
+ }finally{dom.window.close();}
+ const detail=new JSDOM(await readFile('public/mirror.html','utf8'),{url:'https://nounarchive.test/mirror.html?id='+id,runScripts:'outside-only'});
+ try{
+  const w=detail.window;w.fetch=async()=>({ok:true,json:async()=>({id,title:'Course materials and past questions',description:'A local study guide.',content:'Full study guide text. <script>must remain text only</script>',metadata:{category:'Study materials'},assets:[{id:asset,fileName:'past-question.pdf',contentType:'application/pdf',byteSize:1024,downloadUrl:'/api/content/assets/'+asset}]})});
+  w.eval(await readFile('public/mirror.js','utf8'));await new Promise(resolve=>setTimeout(resolve,15));
+  const d=w.document;assert.equal(d.getElementById('mirror-detail').hidden,false);assert.equal(d.getElementById('detail-title').textContent,'Course materials and past questions');
+  assert.equal(d.querySelectorAll('#detail-content script').length,0);assert.match(d.getElementById('detail-content').textContent,/must remain text only/);
+  assert.equal(d.querySelector('.mirror-asset').getAttribute('href'),'/api/content/assets/'+asset);
+  assert.doesNotMatch(d.body.textContent,/BBCNOUN|NOUN Update|Puredu|source tag/i);
+  for(const link of d.querySelectorAll('a[href]'))assert.equal(new URL(link.href).origin,w.location.origin);
+ }finally{detail.window.close();}
+});
+
+test('admin workspace exposes authenticated results import and browsing without public links',async()=>{
+ const dom=new JSDOM(await readFile('public/admin.html','utf8'));
+ try{
+  const d=dom.window.document;assert.equal(d.querySelector('meta[name="robots"]').content,'noindex,nofollow');
+  assert.equal(d.getElementById('results-file').getAttribute('accept'),'.csv,.json,text/csv,application/json');
+  assert.ok(d.getElementById('results-import'));assert.ok(d.getElementById('results-batch'));assert.ok(d.getElementById('results-delete'));
+  assert.match(d.getElementById('student-results-panel').textContent,/encrypted before storage/);
+  assert.equal(d.querySelectorAll('a[href*="results"]').length,0);
  }finally{dom.window.close();}
 });

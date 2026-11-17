@@ -32,7 +32,12 @@ test('GitHub workflows parse and production deployment is restricted to main',as
  assert.ok(!pattern.test('not-a-valid-hash'));
  const steps=deploy.jobs.deploy.steps.filter(step=>step.name?.includes('secret'));
  assert.equal(steps.length,2);
- for(const step of steps) assert.ok(step.run.includes('secret put ADMIN_PASSWORD_HASH'));
+ for(const step of steps){
+  assert.ok(step.run.includes('secret put ADMIN_PASSWORD_HASH'));
+  assert.equal(step.env.STUDENT_RESULTS_ENCRYPTION_KEY,'${{ secrets.STUDENT_RESULTS_ENCRYPTION_KEY }}');
+  assert.match(step.run,/if \[\[ -n "\$\{STUDENT_RESULTS_ENCRYPTION_KEY:-\}" \]\]/);
+  assert.ok(step.run.includes('secret put STUDENT_RESULTS_ENCRYPTION_KEY'));
+ }
 });
 test('workflow actions are restricted to owner-controlled repositories and full commit SHAs',async()=>{
  const {readdir}=await import('node:fs/promises');
@@ -55,8 +60,8 @@ test('only application-specific GitHub Actions workflows are active',async()=>{
 test('Cloudflare targets share D1 binding and migration path',async()=>{
  const configs=await Promise.all(['wrangler.jsonc','wrangler.pages.jsonc','wrangler.scheduler.jsonc'].map(async file=>JSON.parse(await readFile(file,'utf8'))));
  const [worker,pages,scheduler]=configs;
- for(const c of configs){assert.equal(c.d1_databases[0].binding,'DB');assert.equal(c.d1_databases[0].database_id,worker.d1_databases[0].database_id);assert.deepEqual(c.kv_namespaces,[{binding:'kv',id:'d54d022f45014955a5c21a5024ac5720'}]);assert.ok(c.compatibility_flags.includes('nodejs_compat'));for(const migration of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql'])await readFile(c.d1_databases[0].migrations_dir+'/'+migration);}
- const stagedPages=JSON.parse(await readFile('dist/pages-site/wrangler.jsonc','utf8'));assert.deepEqual(stagedPages.kv_namespaces,worker.kv_namespaces);
+ for(const c of configs){assert.equal(c.d1_databases[0].binding,'DB');assert.equal(c.d1_databases[0].database_id,worker.d1_databases[0].database_id);assert.deepEqual(c.kv_namespaces,[{binding:'kv',id:'d54d022f45014955a5c21a5024ac5720'}]);assert.ok(c.compatibility_flags.includes('nodejs_compat'));for(const migration of ['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql','0004_content_mirror.sql'])await readFile(c.d1_databases[0].migrations_dir+'/'+migration);assert.deepEqual(c.r2_buckets,[{binding:'CONTENT',bucket_name:'nounarchive'}]);}
+ const stagedPages=JSON.parse(await readFile('dist/pages-site/wrangler.jsonc','utf8'));assert.deepEqual(stagedPages.kv_namespaces,worker.kv_namespaces);assert.deepEqual(stagedPages.r2_buckets,worker.r2_buckets);
  assert.equal(pages.triggers,undefined);
  assert.deepEqual(worker.triggers.crons,scheduler.triggers.crons);
 });
@@ -73,13 +78,14 @@ test('every workflow action reference is pinned to a full commit SHA',async()=>{
  }
 });
 
-test('Worker and scheduler observability redact queries without persisting invocation logs',async()=>{
- for(const file of ['wrangler.jsonc','wrangler.scheduler.jsonc']){
+test('Cloudflare targets redact query strings, persist invocation logs, and enable real-time issues',async()=>{
+ for(const file of ['wrangler.jsonc','wrangler.pages.jsonc','wrangler.scheduler.jsonc']){
  const {observability}=JSON.parse(await readFile(file,'utf8'));
  assert.deepEqual(observability,{
  enabled:true,head_sampling_rate:1,redact_query_string:true,
- logs:{enabled:true,head_sampling_rate:1,invocation_logs:true,persist:false},
- traces:{enabled:false,head_sampling_rate:1,persist:true}
+ logs:{enabled:true,head_sampling_rate:1,invocation_logs:true,persist:true},
+ traces:{enabled:false,head_sampling_rate:1,persist:true},
+ issues:{enabled:true}
  },file);
  }
 });

@@ -84,19 +84,27 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ADMIN_PASSWORD_HASH: ${{ secrets.Admin_password_hash || secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}
+          STUDENT_RESULTS_ENCRYPTION_KEY: ${{ secrets.STUDENT_RESULTS_ENCRYPTION_KEY }}
         working-directory: ${{ github.workspace }}
         run: |
           npm run cf:deploy
           printf '%s' "$ADMIN_PASSWORD_HASH" | npx wrangler secret put ADMIN_PASSWORD_HASH
+          if [[ -n "${STUDENT_RESULTS_ENCRYPTION_KEY:-}" ]]; then
+            printf '%s' "$STUDENT_RESULTS_ENCRYPTION_KEY" | npx wrangler secret put STUDENT_RESULTS_ENCRYPTION_KEY
+          fi
       - name: Set Pages secret, deploy Pages and deploy scheduler
         if: inputs.target == 'pages'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ADMIN_PASSWORD_HASH: ${{ secrets.Admin_password_hash || secrets.CLOUDFLARE_ADMIN_PASSWORD_HASH }}
+          STUDENT_RESULTS_ENCRYPTION_KEY: ${{ secrets.STUDENT_RESULTS_ENCRYPTION_KEY }}
           DEPLOY_BRANCH: ${{ github.ref_name }}
         working-directory: ${{ github.workspace }}
         run: |
           printf '%s' "$ADMIN_PASSWORD_HASH" | npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name nounarchive
+          if [[ -n "${STUDENT_RESULTS_ENCRYPTION_KEY:-}" ]]; then
+            printf '%s' "$STUDENT_RESULTS_ENCRYPTION_KEY" | npx wrangler pages secret put STUDENT_RESULTS_ENCRYPTION_KEY --project-name nounarchive
+          fi
           npm run pages:deploy -- --branch "$DEPLOY_BRANCH"
           npm run cf:deploy:scheduler
