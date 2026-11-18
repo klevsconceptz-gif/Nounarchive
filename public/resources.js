@@ -33,6 +33,14 @@
     return `/tool.html?id=${encodeURIComponent(id)}`;
   }
 
+  function archiveSearchHref(item) {
+    const text = `${item.id || ''} ${item.title || ''}`.toLowerCase();
+    const query = /past[-\s]?questions?/.test(text) ? 'past question' : /course|courseware|study material/.test(text) ? 'course' : '';
+    if (!query) return '';
+    const params = new URLSearchParams({category:'Study materials',q:query,files:'1'});
+    return `/mirror.html?${params.toString()}`;
+  }
+
   function render() {
     const query = (search?.value || '').trim().toLowerCase();
     const filtered = resources.filter(item =>
@@ -45,8 +53,10 @@
       const description = escape(item.description || 'Open this local student workspace.');
       const categoryName = escape(item.category || 'Student support');
       const href = escape(localHref(item));
+      const archiveHref = archiveSearchHref(item);
       const action = item.localTool === 'news' ? 'Browse updates' : 'Open locally';
-      return `<article class="resource-card"><span class="resource-meta">${categoryName}</span><h3>${title}</h3><p>${description}</p><a class="resource-link" href="${href}">${action} <span aria-hidden="true">→</span></a></article>`;
+      const archiveAction = archiveHref ? `<a class="resource-file-link" href="${escape(archiveHref)}">Browse downloadable files <span aria-hidden="true">→</span></a>` : '';
+      return `<article class="resource-card"><span class="resource-meta">${categoryName}</span><h3>${title}</h3><p>${description}</p><div class="resource-card-actions"><a class="resource-link" href="${href}">${action} <span aria-hidden="true">→</span></a>${archiveAction}</div></article>`;
     }).join('') || '<div class="empty"><h3>No resources found.</h3><p>Try another search or category.</p></div>';
   }
 

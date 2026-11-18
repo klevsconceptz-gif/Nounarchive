@@ -47,7 +47,7 @@
 
   function renderGrades() {
     content.innerHTML = `
-      <div class="tool-intro-note"><strong>Weighted grade calculator</strong><span>Enter course units and grades. Add previous CGPA details for a cumulative estimate.</span></div>
+      <div class="tool-intro-note"><strong>Local result & GPA tracker</strong><span>Enter course units and grades for a weighted estimate. This calculator does not look up or publish student result records.</span></div>
       <form id="grade-form" class="tool-form">
         <div class="tool-grid"><label>Previous CGPA (optional)<input id="prior-cgpa" type="number" min="0" max="5" step="0.01" inputmode="decimal"></label><label>Previously completed units<input id="prior-units" type="number" min="0" max="1000" step="1" inputmode="numeric" value="0"></label></div>
         <div class="tool-section-head"><h2>Courses</h2><button id="add-course" class="secondary" type="button">Add course</button></div>

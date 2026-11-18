@@ -31,7 +31,8 @@ const clean=value=>cheerio.load(String(value||'')).text().replace(/\s+/g,' ').tr
 
 function hostsFor(source){
  const host=new URL(source.url).hostname.toLowerCase();
- return new Set([host,host.startsWith('www.')?host.slice(4):`www.${host}`]);
+ const extra=Array.isArray(source.mirrorHosts)?source.mirrorHosts.filter(value=>typeof value==='string'&&/^(?:[a-z0-9-]+\.)+[a-z0-9-]+$/i.test(value)).map(value=>value.toLowerCase()):[];
+ return new Set([host,host.startsWith('www.')?host.slice(4):`www.${host}`,...extra]);
 }
 function blockedPath(path){
  return /(?:^|\/)(?:wp-admin|wp-login\.php|xmlrpc\.php|login|logout|register|signup|account|dashboard|student-portal|portal|results?(?:[-_]?(?:checker|lookup|portal))?|check[-_]result|checker)(?:\.php)?(?:\/|$)/i.test(path);
@@ -294,10 +295,17 @@ async function prepareSource(env,source){
  await statement(env,'INSERT INTO mirror_crawl_state(source) VALUES(?) ON CONFLICT(source) DO NOTHING',source.id).run();
  const state=await statement(env,'SELECT last_discovery_at FROM mirror_crawl_state WHERE source=?',source.id).first();
  const discovered=Date.parse(state?.last_discovery_at||'')||0;
+ const configuredSeeds=[source.url,...(Array.isArray(source.mirrorStartUrls)?source.mirrorStartUrls:[])];
+ const seedUrls=[...new Set(configuredSeeds.map(url=>normalizeMirrorUrl(source,url,source.url)).filter(Boolean))];
+ // Enqueue configured study pages on every run. This makes newly added seeds
+ // effective immediately after deployment while the queue upsert leaves pages
+ // that are already complete untouched.
+ await enqueue(env,source,seedUrls.map(url=>({url,kind:'page'})));
  if(now-discovered>=DAY_MS){
-  const urls=[{url:source.url,kind:'page'}];
-  for(const path of ['/robots.txt','/sitemap.xml','/sitemap_index.xml','/wp-sitemap.xml'])urls.push({url:new URL(path,source.url).href,kind:'sitemap'});
-  await enqueue(env,source,urls);
+  const origins=[...new Set(seedUrls.map(url=>new URL(url).origin))];
+  const sitemapUrls=[];
+  for(const origin of origins)for(const path of ['/robots.txt','/sitemap.xml','/sitemap_index.xml','/wp-sitemap.xml'])sitemapUrls.push({url:new URL(path,origin).href,kind:'sitemap'});
+  await enqueue(env,source,sitemapUrls);
   await statement(env,'UPDATE mirror_crawl_state SET last_discovery_at=?,last_error=NULL WHERE source=?',nowIso,source.id).run();
  }
  const staleCutoff=new Date(now-DAY_MS).toISOString();

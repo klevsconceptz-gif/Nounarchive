@@ -46,14 +46,37 @@ test('resource directory preserves records without outbound links and handles no
  assert.equal(d.querySelectorAll('.resource-card').length,resources.length);
  assert.doesNotMatch(d.body.textContent,/BBCNOUN|NOUN Update|Puredu|Our sources/);
  assert.equal(d.querySelectorAll('.resource-card a.resource-link').length,resources.length);
+ assert.ok(d.querySelectorAll('.resource-card a.resource-file-link').length>0);
  assert.ok(resources.length>=50);
  assert.ok(resources.every(item=>item.id&&item.url&&item.source&&item.localTool));
  for(const link of d.querySelectorAll('a[href]'))assert.equal(new URL(link.href).origin,'https://nounarchive.test');
- for(const link of d.querySelectorAll('.resource-card a'))assert.match(link.getAttribute('href'),/^\/tool\.html\?id=/);
+ for(const link of d.querySelectorAll('.resource-card a.resource-link'))assert.match(link.getAttribute('href'),/^\/tool\.html\?id=/);
+ for(const link of d.querySelectorAll('.resource-card a.resource-file-link')){const url=new URL(link.href);assert.equal(url.pathname,'/mirror.html');assert.equal(url.searchParams.get('category'),'Study materials');assert.equal(url.searchParams.get('files'),'1');assert.ok(['course','past question'].includes(url.searchParams.get('q')));}
  const select=d.getElementById('resource-category');select.value='Admissions';select.dispatchEvent(new dom.window.Event('change'));assert.equal(d.querySelectorAll('.resource-card').length,resources.filter(item=>item.category==='Admissions').length);
  const search=d.getElementById('resource-search');search.value='nonexistent resource';search.dispatchEvent(new dom.window.Event('input'));assert.equal(d.querySelectorAll('.resource-card').length,0);assert.match(d.getElementById('resource-cards').textContent,/No resources found/);
  }finally{dom.window.close();}
 });
+test('course and past-question shortcuts open file search while results stay a local calculator',async()=>{
+ const resourcesDom=new JSDOM(await readFile('public/resources.html','utf8'),{url:'https://nounarchive.test/resources.html'});
+ try{
+  const d=resourcesDom.window.document;
+  const course=new URL(d.querySelector('.resource-file-card[href*="q=course"]').href);
+  const past=new URL(d.querySelector('.resource-file-card[href*="q=past%20question"]').href);
+  assert.equal(course.pathname,'/mirror.html');assert.equal(course.searchParams.get('files'),'1');assert.equal(course.searchParams.get('category'),'Study materials');assert.equal(course.searchParams.get('q'),'course');
+  assert.equal(past.pathname,'/mirror.html');assert.equal(past.searchParams.get('files'),'1');assert.equal(past.searchParams.get('q'),'past question');
+  const result=new URL(d.querySelector('.resource-tool-card').href);assert.equal(result.pathname,'/tool.html');assert.equal(result.searchParams.get('id'),'result-checker');
+  assert.match(d.querySelector('.resource-file-heading').textContent,/does not look up or publish student records/);
+ }finally{resourcesDom.window.close();}
+ const home=new JSDOM(await readFile('public/index.html','utf8'),{url:'https://nounarchive.test/'});
+ try{
+  const d=home.window.document;
+  for(const text of ['Course materials','Past questions']){
+   const card=[...d.querySelectorAll('.quick-access>a')].find(a=>a.querySelector('strong')?.textContent===text);
+   assert.ok(card);const target=new URL(card.href);assert.equal(target.pathname,'/mirror.html');assert.equal(target.searchParams.get('files'),'1');
+  }
+ }finally{home.window.close();}
+});
+
 test('public pages omit admin links but the direct admin panel remains available',async()=>{
  for(const file of ['index.html','resources.html','post.html','mirror.html']){
  const dom=new JSDOM(await readFile('public/'+file,'utf8'));try{assert.equal(dom.window.document.querySelectorAll('a[href*="admin"]').length,0,file);}finally{dom.window.close();}
@@ -214,7 +237,7 @@ test('resource URLs cannot create external navigation or executable markup',asyn
 
 test('local content archive searches and opens full text with R2 files through internal routes',async()=>{
  const id='a'.repeat(32),asset='b'.repeat(32);
- const dom=new JSDOM(await readFile('public/mirror.html','utf8'),{url:'https://nounarchive.test/mirror.html',runScripts:'outside-only'});
+ const dom=new JSDOM(await readFile('public/mirror.html','utf8'),{url:'https://nounarchive.test/mirror.html?category=Study%20materials&q=course&files=1',runScripts:'outside-only'});
  try{
   const w=dom.window,calls=[];
   w.fetch=async url=>{
@@ -224,16 +247,21 @@ test('local content archive searches and opens full text with R2 files through i
   };
   w.eval(await readFile('public/mirror.js','utf8'));await new Promise(resolve=>setTimeout(resolve,15));
   const d=w.document;assert.equal(d.querySelectorAll('.mirror-card').length,1);assert.equal(d.querySelector('.mirror-card h2').textContent,'Course materials and past questions');
-  assert.equal(d.querySelector('.mirror-card a').getAttribute('href'),'/mirror.html?id='+id);
+  assert.equal(d.getElementById('mirror-files').checked,true);
+  const firstSearch=new URL(calls[0],w.location.origin);assert.equal(firstSearch.searchParams.get('files'),'1');assert.equal(firstSearch.searchParams.get('category'),'Study materials');assert.equal(firstSearch.searchParams.get('q'),'course');
+  const detailLink=new URL(d.querySelector('.mirror-card a').href,w.location.origin);assert.equal(detailLink.pathname,'/mirror.html');assert.equal(detailLink.searchParams.get('id'),id);assert.equal(detailLink.searchParams.get('files'),'1');assert.equal(detailLink.searchParams.get('q'),'course');
   d.getElementById('mirror-query').value='course';d.getElementById('mirror-search').dispatchEvent(new w.SubmitEvent('submit',{bubbles:true,cancelable:true}));await new Promise(resolve=>setTimeout(resolve,15));
-  assert.ok(calls.some(value=>value.includes('q=course')));
+  assert.ok(calls.some(value=>value.includes('q=course')&&value.includes('files=1')));
+  d.getElementById('mirror-clear').click();await new Promise(resolve=>setTimeout(resolve,15));
+  const clearedSearch=new URL(calls.at(-1),w.location.origin);assert.equal(clearedSearch.searchParams.has('files'),false);assert.equal(clearedSearch.searchParams.has('category'),false);assert.equal(d.getElementById('mirror-files').checked,false);
   for(const link of d.querySelectorAll('a[href]'))assert.equal(new URL(link.href).origin,w.location.origin);
  }finally{dom.window.close();}
- const detail=new JSDOM(await readFile('public/mirror.html','utf8'),{url:'https://nounarchive.test/mirror.html?id='+id,runScripts:'outside-only'});
+ const detail=new JSDOM(await readFile('public/mirror.html','utf8'),{url:'https://nounarchive.test/mirror.html?q=course&category=Study%20materials&files=1&id='+id,runScripts:'outside-only'});
  try{
   const w=detail.window;w.fetch=async()=>({ok:true,json:async()=>({id,title:'Course materials and past questions',description:'A local study guide.',content:'Full study guide text. <script>must remain text only</script>',metadata:{category:'Study materials'},assets:[{id:asset,fileName:'past-question.pdf',contentType:'application/pdf',byteSize:1024,downloadUrl:'/api/content/assets/'+asset}]})});
   w.eval(await readFile('public/mirror.js','utf8'));await new Promise(resolve=>setTimeout(resolve,15));
   const d=w.document;assert.equal(d.getElementById('mirror-detail').hidden,false);assert.equal(d.getElementById('detail-title').textContent,'Course materials and past questions');
+  const backLink=new URL(d.querySelector('.mirror-back').href,w.location.origin);assert.equal(backLink.pathname,'/mirror.html');assert.equal(backLink.searchParams.get('q'),'course');assert.equal(backLink.searchParams.get('files'),'1');
   assert.equal(d.querySelectorAll('#detail-content script').length,0);assert.match(d.getElementById('detail-content').textContent,/must remain text only/);
   assert.equal(d.querySelector('.mirror-asset').getAttribute('href'),'/api/content/assets/'+asset);
   assert.doesNotMatch(d.body.textContent,/BBCNOUN|NOUN Update|Puredu|source tag/i);
