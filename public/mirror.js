@@ -3,12 +3,14 @@
   const searchForm = $('mirror-search');
   const queryInput = $('mirror-query');
   const categoryInput = $('mirror-category');
+  const filesInput = $('mirror-files');
   const results = $('mirror-results');
   if (!searchForm || !results) return;
   const params = new URLSearchParams(location.search);
   const requestedCategory = params.get('category') || '';
   if ([...categoryInput.options].some(option => option.value === requestedCategory)) categoryInput.value = requestedCategory;
   queryInput.value = params.get('q') || '';
+  filesInput.checked = params.get('files') === '1';
   const detailId = params.get('id');
   let offset = 0;
   let hasMore = false;
@@ -18,13 +20,17 @@
     if (!value || !Number.isFinite(Date.parse(value))) return '';
     return new Date(value).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
   };
-  function updateUrl(id = '') {
+  function collectionHref(id = '') {
     const next = new URLSearchParams();
     if (queryInput.value.trim()) next.set('q', queryInput.value.trim());
     if (categoryInput.value) next.set('category', categoryInput.value);
+    if (filesInput.checked) next.set('files', '1');
     if (id) next.set('id', id);
     const encoded = next.toString();
-    history.replaceState(null, '', '/mirror.html' + (encoded ? '?' + encoded : ''));
+    return '/mirror.html' + (encoded ? '?' + encoded : '');
+  }
+  function updateUrl(id = '') {
+    history.replaceState(null, '', collectionHref(id));
   }
   function renderResults(items, append = false) {
     const html = items.map(item => {
@@ -32,18 +38,26 @@
       if (!id) return '';
       const category = item.metadata?.category || 'Student information';
       const date = dateLabel(item.publishedAt || item.modifiedAt);
-      return `<article class="mirror-card"><a class="mirror-card-open" href="/mirror.html?id=${encodeURIComponent(id)}"><span class="mirror-category">${escape(category)}</span><h2>${escape(item.title || 'Student information')}</h2><p>${escape(item.description || item.excerpt || '')}</p><span class="mirror-card-foot">${date ? `<time>${escape(date)}</time>` : '<span>Local collection</span>'}<span>${Number(item.assetCount) > 0 ? `${Number(item.assetCount)} file${Number(item.assetCount) === 1 ? '' : 's'} · ` : ''}Read collection →</span></span></a></article>`;
+      const detailUrl = escape(collectionHref(id));
+      return `<article class="mirror-card"><a class="mirror-card-open" href="${detailUrl}"><span class="mirror-category">${escape(category)}</span><h2>${escape(item.title || 'Student information')}</h2><p>${escape(item.description || item.excerpt || '')}</p><span class="mirror-card-foot">${date ? `<time>${escape(date)}</time>` : '<span>Local collection</span>'}<span>${Number(item.assetCount) > 0 ? `${Number(item.assetCount)} file${Number(item.assetCount) === 1 ? '' : 's'} · ` : ''}Read collection →</span></span></a></article>`;
     }).join('');
     if (!append) results.innerHTML = html;
     else results.insertAdjacentHTML('beforeend', html);
-    if (!results.children.length) results.innerHTML = '<div class="mirror-empty"><h2>No matching content</h2><p>Try a different phrase or content type.</p></div>';
+    if (!results.children.length) {
+      const title = filesInput.checked ? 'No matching files yet' : 'No matching content';
+      const message = filesInput.checked
+        ? 'Try a shorter course code or another phrase. Only files already indexed in the local collection can be downloaded.'
+        : 'Try a different phrase or content type.';
+      results.innerHTML = `<div class="mirror-empty"><h2>${title}</h2><p>${message}</p><a href="/mirror.html">Browse all local content →</a></div>`;
+    }
   }
   async function load(append = false) {
     if (busy) return;
     busy = true;
     const query = queryInput.value.trim();
     const category = categoryInput.value;
-    $('mirror-clear').hidden = !query && !category;
+    const filesOnly = filesInput.checked;
+    $('mirror-clear').hidden = !query && !category && !filesOnly;
     const start = append ? offset : 0;
     if (!append) {
       offset = 0;
@@ -53,6 +67,7 @@
     const url = new URL('/api/content', location.origin);
     if (query) url.searchParams.set('q', query);
     if (category) url.searchParams.set('category', category);
+    if (filesOnly) url.searchParams.set('files', '1');
     url.searchParams.set('limit', '24');
     url.searchParams.set('offset', String(start));
     try {
@@ -64,7 +79,8 @@
       hasMore = Boolean(payload.hasMore);
       offset = Number.isInteger(payload.nextOffset) ? payload.nextOffset : start + payload.items.length;
       $('mirror-more').hidden = !hasMore;
-      $('mirror-count').textContent = `${payload.items.length ? `${start + payload.items.length}${hasMore ? '+' : ''}` : '0'} result${start + payload.items.length === 1 ? '' : 's'}${query ? ` for “${query}”` : ''}`;
+      const total = start + payload.items.length;
+      $('mirror-count').textContent = `${payload.items.length ? `${total}${hasMore ? '+' : ''}` : '0'} ${filesOnly ? 'downloadable file result' : 'result'}${total === 1 ? '' : 's'}${query ? ` for “${query}”` : ''}`;
       updateUrl();
     } catch {
       if (!append) results.replaceChildren();
@@ -81,6 +97,8 @@
     $('mirror-browser').hidden = true;
     const detail = $('mirror-detail');
     detail.hidden = false;
+    const backLink = globalThis.document.querySelector('.mirror-back');
+    if (backLink) backLink.href = collectionHref();
     globalThis.document.title = `${document.title || 'Collection item'} · Nounarchive`;
     $('detail-category').textContent = document.metadata?.category || 'Student information';
     $('detail-title').textContent = document.title || 'Student information';
@@ -119,7 +137,8 @@
   }
   searchForm.addEventListener('submit', event => { event.preventDefault(); load(false); });
   categoryInput.addEventListener('change', () => load(false));
-  $('mirror-clear').addEventListener('click', () => { queryInput.value = ''; categoryInput.value = ''; load(false); });
+  filesInput.addEventListener('change', () => load(false));
+  $('mirror-clear').addEventListener('click', () => { queryInput.value = ''; categoryInput.value = ''; filesInput.checked = false; load(false); });
   $('mirror-more').addEventListener('click', () => { if (hasMore) load(true); });
   if (detailId) loadDetail(detailId);
   else load(false);

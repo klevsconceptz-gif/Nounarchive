@@ -133,17 +133,19 @@ api.get('/api/content',async c=>{
  const limit=Number.isInteger(limitValue)?Math.min(50,Math.max(1,limitValue)):24;
  const offset=Number.isSafeInteger(offsetValue)?Math.min(1000000,Math.max(0,offsetValue)):0;
  const rawCategory=(c.req.query('category')||'').trim().slice(0,80);
+ const filesOnly=c.req.query('files')==='1';
  const allowedCategories=new Set(['Study materials','Admissions','Academics','News & notices','Student information']);
  const conditions=[],params=[];
- if(rawQuery){const like='%'+rawQuery.toLowerCase().replace(/[\\%_]/g,'')+'%';conditions.push('(LOWER(d.title) LIKE ? OR LOWER(d.description) LIKE ? OR LOWER(d.content_text) LIKE ? OR LOWER(d.metadata) LIKE ?)');params.push(like,like,like,like);}
+ if(rawQuery){const normalized=rawQuery.toLowerCase().replace(/[\\%_]/g,'');const like='%'+normalized+'%',fileLike='%'+normalized.replace(/[^a-z0-9]+/g,' ').trim()+'%';conditions.push('(LOWER(d.title) LIKE ? OR LOWER(d.description) LIKE ? OR LOWER(d.content_text) LIKE ? OR LOWER(d.metadata) LIKE ? OR EXISTS (SELECT 1 FROM mirror_assets search_asset WHERE search_asset.document_id=d.id AND LOWER(REPLACE(REPLACE(REPLACE(search_asset.file_name,\'-\',\' \'),\'_\',\' \'),\'.\',\' \')) LIKE ?))');params.push(like,like,like,like,fileLike);}
  if(allowedCategories.has(rawCategory)){conditions.push("json_extract(d.metadata,'$.category')=?");params.push(rawCategory);}
+ if(filesOnly)conditions.push('EXISTS (SELECT 1 FROM mirror_assets file_asset WHERE file_asset.document_id=d.id)');
  const filter=conditions.length?'WHERE '+conditions.join(' AND '):'';
  params.push(limit+1,offset);
  const rows=await records(c.env,`SELECT d.id,d.title,d.description,d.content_type,d.source_published_at,d.source_modified_at,d.metadata,substr(d.content_text,1,360) AS excerpt,
   (SELECT count(*) FROM mirror_assets a WHERE a.document_id=d.id) AS asset_count FROM mirror_documents d ${filter}
   ORDER BY COALESCE(d.source_published_at,d.source_modified_at,d.last_seen_at) DESC,d.id LIMIT ? OFFSET ?`,...params);
  const hasMore=rows.length>limit,items=rows.slice(0,limit).map(row=>({id:row.id,title:row.title,description:row.description,excerpt:row.excerpt,contentType:row.content_type,publishedAt:row.source_published_at,modifiedAt:row.source_modified_at,assetCount:row.asset_count,metadata:publicMirrorMetadata(row.metadata)}));
- return c.json({items,query:rawQuery,category:allowedCategories.has(rawCategory)?rawCategory:'',offset,limit,nextOffset:hasMore?offset+limit:null,hasMore});
+ return c.json({items,query:rawQuery,category:allowedCategories.has(rawCategory)?rawCategory:'',filesOnly,offset,limit,nextOffset:hasMore?offset+limit:null,hasMore});
 });
 api.get('/api/content/assets/:id',async c=>{
  const id=c.req.param('id');if(!/^[a-f0-9]{32}$/i.test(id))return c.json({error:'This file is unavailable.'},404);

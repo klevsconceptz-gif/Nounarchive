@@ -35,6 +35,7 @@ test('CGPA calculator uses course-unit weighting and saves its inputs locally',a
  const dom=await openTool('cgpa-calculator');
  try{
   const w=dom.window,d=w.document,row=d.querySelector('.grade-row');
+  assert.match(d.querySelector('.tool-intro-note').textContent,/does not look up or publish student result records/);
   row.querySelector('[data-units]').value='3';row.querySelector('[data-grade]').value='A';
   d.getElementById('grade-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
   assert.match(d.getElementById('grade-result').textContent,/5\.00/);

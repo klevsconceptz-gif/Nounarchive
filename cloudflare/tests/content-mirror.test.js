@@ -4,11 +4,13 @@ import {randomBytes} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
 import {normalizeMirrorUrl} from '../content-mirror.js';
+import {sources} from '../../aggregator.js';
 import {passwordKey,randomToken} from '../security.js';
 
 const files=['0001_initial.sql','0002_admin_recovery.sql','0003_resources.sql','0004_content_mirror.sql'];
 const migrations=async db=>{for(const file of files)for(const sql of (await readFile('cloudflare/migrations/'+file,'utf8')).split(';').map(value=>value.trim()).filter(Boolean))await db.prepare(sql).run();};
 const mirrorUrl={id:'bbcnoun',name:'BBCNOUN',url:'https://bbcnoun.com.ng/'};
+const bbcMirrorSource=sources.find(source=>source.id==='bbcnoun');
 
 test('mirror URL policy only accepts approved HTTPS hosts and excludes private result routes',()=>{
  assert.equal(normalizeMirrorUrl(mirrorUrl,'https://bbcnoun.com.ng/notes/?utm_source=mail#section'), 'https://bbcnoun.com.ng/notes');
@@ -17,6 +19,11 @@ test('mirror URL policy only accepts approved HTTPS hosts and excludes private r
  assert.equal(normalizeMirrorUrl(mirrorUrl,'http://bbcnoun.com.ng/notes'),null);
  assert.equal(normalizeMirrorUrl(mirrorUrl,'https://bbcnoun.com.ng/results.php?matric=123'),null);
  assert.equal(normalizeMirrorUrl(mirrorUrl,'https://bbcnoun.com.ng/course.php?id=123&token=secret'),'https://bbcnoun.com.ng/course.php?id=123');
+ assert.equal(normalizeMirrorUrl(bbcMirrorSource,'https://e-courseware.bbcnoun.com.ng/materials/course-101.pdf'),'https://e-courseware.bbcnoun.com.ng/materials/course-101.pdf');
+ assert.equal(normalizeMirrorUrl(bbcMirrorSource,'https://unlisted.bbcnoun.com.ng/materials/course-101.pdf'),null,'only the explicitly allowed courseware host is followed');
+ assert.equal(normalizeMirrorUrl(bbcMirrorSource,'https://e-courseware.bbcnoun.com.ng/results/student-records.pdf'),null,'result paths remain excluded on added hosts');
+ assert.ok(bbcMirrorSource.mirrorStartUrls.includes('https://bbcnoun.com.ng/noun-past-questions/'));
+ assert.ok(bbcMirrorSource.mirrorStartUrls.includes('https://e-courseware.bbcnoun.com.ng/'));
 });
 
 test('daily mirror crawls same-site pages, stores study files in R2, and serves only local URLs',async()=>{
@@ -34,6 +41,14 @@ test('daily mirror crawls same-site pages, stores study files in R2, and serves 
    if(url.pathname==='/private-results'||url.pathname==='/records/semester-report')return new Response(html('Private results notice','<table><thead><tr><th>Student Name</th><th>Matriculation Number</th><th>Course</th><th>Grade</th></tr></thead><tbody><tr><td>Alice Example</td><td>NOU12345678</td><td>ABC101</td><td>A</td></tr></tbody></table>'),{headers:{'Content-Type':'text/html'}});
    if(url.pathname==='/files/past-question.pdf')return new Response(new Uint8Array([37,80,68,70,45,49,46,52]),{headers:{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="past-question.pdf"','Content-Length':'8'}});
    if(url.pathname==='/files/unknown-length.pdf')return new Response(new ReadableStream({start(controller){controller.enqueue(new Uint8Array(20_000_001));controller.close();}}),{headers:{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="unknown-length.pdf"'}});
+  }
+  if(url.hostname==='e-courseware.bbcnoun.com.ng'){
+   if(url.pathname==='/robots.txt')return new Response('User-agent: *\nSitemap: https://e-courseware.bbcnoun.com.ng/sitemap.xml\n',{headers:{'Content-Type':'text/plain'}});
+   if(url.pathname==='/sitemap.xml')return new Response('<urlset><url><loc>https://e-courseware.bbcnoun.com.ng/courses/abc101-material.html</loc></url><url><loc>https://e-courseware.bbcnoun.com.ng/files/term-2023-paper.pdf</loc></url><url><loc>https://e-courseware.bbcnoun.com.ng/results/private.pdf</loc></url></urlset>',{headers:{'Content-Type':'application/xml'}});
+   if(url.pathname==='/')return new Response(html('BBCNOUN Courseware','<p>Public course-material index.</p><a href="/courses/abc101-material.html">ABC101 Course Material</a>'),{headers:{'Content-Type':'text/html'}});
+   if(url.pathname==='/courses/abc101-material.html')return new Response(html('ABC101 Course Material','<p>Downloadable study notes for ABC101 and introductory accounting.</p><a href="/files/abc101-course-material.pdf">Download ABC101 course material</a>'),{headers:{'Content-Type':'text/html'}});
+   if(url.pathname==='/files/abc101-course-material.pdf')return new Response(new Uint8Array([37,80,68,70,45,49,46,55]),{headers:{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="abc101-course-material.pdf"','Content-Length':'8'}});
+   if(url.pathname==='/files/term-2023-paper.pdf')return new Response(new Uint8Array([37,80,68,70,45,49,46,54]),{headers:{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="term-2023-paper.pdf"','Content-Length':'8'}});
   }
   if(url.hostname==='nounupdate.com'){
    if(url.pathname==='/news/')return new Response(html('NOUN Update News List','<article><h2><a href="/news/example-update">NOUN Update publishes a local mirror test notice</a></h2><p>Test notice excerpt.</p></article>'),{headers:{'Content-Type':'text/html'}});
@@ -61,6 +76,14 @@ test('daily mirror crawls same-site pages, stores study files in R2, and serves 
   const oversized=await db.prepare("SELECT state,last_error FROM mirror_crawl_queue WHERE source='bbcnoun' AND url='https://bbcnoun.com.ng/files/unknown-length.pdf' AND kind='asset'").first();assert.equal(oversized.state,'error');assert.match(oversized.last_error,/without a Content-Length header are limited to 20 MB/);
   assert.equal(await db.prepare("SELECT id FROM mirror_assets WHERE source_url='https://bbcnoun.com.ng/files/unknown-length.pdf'").first(),null);
   const object=await bucket.get(asset.object_key);assert.ok(object);assert.equal(object.size,8);
+  const courseDocument=documents.find(item=>item.title==='ABC101 Course Material');assert.ok(courseDocument,'the explicitly seeded courseware host is crawled');
+  const courseAsset=await db.prepare("SELECT id,object_key FROM mirror_assets WHERE file_name='abc101-course-material.pdf'").first();assert.ok(courseAsset);
+  assert.ok(await bucket.get(courseAsset.object_key));
+  const fileSearch=await mf.dispatchFetch('https://nounarchive.test/api/content?q=course&category=Study+materials&files=1');assert.equal(fileSearch.status,200);
+  const fileSearchPayload=await fileSearch.json();assert.equal(fileSearchPayload.filesOnly,true);assert.ok(fileSearchPayload.items.length>=2);
+  assert.ok(fileSearchPayload.items.every(item=>item.assetCount>0));
+  const filenameSearch=await mf.dispatchFetch('https://nounarchive.test/api/content?q=term+2023+paper&category=Study+materials&files=1');
+  const filenameMatches=await filenameSearch.json();assert.ok(filenameMatches.items.some(item=>item.title==='term-2023-paper.pdf'),'search also finds standalone downloads by a human-readable filename');
   const search=await mf.dispatchFetch('https://nounarchive.test/api/content?q=syllabus');assert.equal(search.status,200);const response=await search.json();assert.ok(response.items.some(item=>item.id===guide.id));assert.ok(!JSON.stringify(response).includes('https://bbcnoun.com.ng'));assert.ok(!JSON.stringify(response).includes('source'));
   const detail=await (await mf.dispatchFetch('https://nounarchive.test/api/content/'+guide.id)).json();assert.equal(detail.title,'Course Guide');assert.match(detail.content,/searchable paragraph/);assert.equal(detail.assets[0].downloadUrl,'/api/content/assets/'+asset.id);assert.ok(!JSON.stringify(detail).includes('canonical_url'));assert.ok(!JSON.stringify(detail).includes('https://bbcnoun.com.ng'));
   const download=await mf.dispatchFetch('https://nounarchive.test'+detail.assets[0].downloadUrl);assert.equal(download.status,200);assert.equal(download.headers.get('content-type'),'application/octet-stream');assert.match(download.headers.get('content-disposition'),/attachment/);assert.equal((await download.arrayBuffer()).byteLength,8);

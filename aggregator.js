@@ -3,8 +3,17 @@ import { XMLParser } from 'fast-xml-parser';
 import { createHash } from 'node:crypto';
 
 export const sources = [
-  { id: 'bbcnoun', name: 'BBCNOUN', url: 'https://bbcnoun.com.ng/', endpoints: ['https://bbcnoun.com.ng/feed/'] },
-  { id: 'nounupdate', name: 'NOUN Update', url: 'https://nounupdate.com/', endpoints: ['https://nounupdate.com/news/'] },
+  {
+    id: 'bbcnoun', name: 'BBCNOUN', url: 'https://bbcnoun.com.ng/', endpoints: ['https://bbcnoun.com.ng/feed/'],
+    // Courseware is published on this specific BBCNOUN subdomain. Keep the
+    // allowlist exact; do not implicitly trust every subdomain or file host.
+    mirrorHosts: ['e-courseware.bbcnoun.com.ng'],
+    mirrorStartUrls: ['https://bbcnoun.com.ng/noun-past-questions/', 'https://e-courseware.bbcnoun.com.ng/']
+  },
+  {
+    id: 'nounupdate', name: 'NOUN Update', url: 'https://nounupdate.com/', endpoints: ['https://nounupdate.com/news/'],
+    mirrorStartUrls: ['https://nounupdate.com/courses/', 'https://nounupdate.com/past-questions']
+  },
   { id: 'puredu', name: 'Puredu', url: 'https://puredu.net/', endpoints: ['https://puredu.net/'] }
 ];
 
